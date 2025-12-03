@@ -42,9 +42,9 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/magisterskaya"
-Repository = "https://github.com/yourusername/magisterskaya.git"
-"Issue Tracker" = "https://github.com/yourusername/magisterskaya/issues"
+Homepage = "https://github.com/Vladislav322-tester/magisterskaya"
+Repository = "https://github.com/Vladislav322-tester/magisterskaya.git"
+"Issue Tracker" = "https://github.com/Vladislav322-tester/magisterskaya/issues"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
