@@ -4,6 +4,7 @@
 import pytest
 import sys
 from pathlib import Path
+from src.FA_simple import FA_simple
 
 # Добавляем src в путь
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
@@ -14,8 +15,8 @@ def fa_factory():
     """Фабрика для создания объектов FA_simple"""
 
     def _factory(transitions, initial=None, numberOfStates=None,
-                 numberOfInputs=None, finalStates=None, isFSM=None):
-        from FA_simple import FA_simple
+                 numberOfInputs=None, finalStates=None, isFSM=None,
+                 numberOfOutputs=None):  # Добавили параметр
         fa = FA_simple()
         fa.transitionList = transitions
         fa.initialState = initial if initial is not None else (
@@ -29,6 +30,8 @@ def fa_factory():
             fa.finalStates = finalStates
         if isFSM is not None:
             fa.isFSM = isFSM
+        if numberOfOutputs is not None:  # Добавили обработку
+            fa.numberOfOutputs = numberOfOutputs
 
         return fa
 
@@ -38,7 +41,6 @@ def fa_factory():
 @pytest.fixture
 def simple_fa():
     """Простой конечный автомат для тестирования"""
-    from FA_simple import FA_simple
     fa = FA_simple()
     fa.initialState = 0
     fa.numberOfStates = 2

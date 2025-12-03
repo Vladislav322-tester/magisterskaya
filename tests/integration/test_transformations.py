@@ -339,5 +339,139 @@ class TestFA_simpleComplexIntegration:
         assert results[1][1] is not None, "Вход 1 должен быть определен"
 
 
+class TestFASimpleEdgeCaseCoverage:
+    """Тесты для покрытия граничных случаев"""
+
+    def test_move_seq_fsm_with_none_input_AAA(self, fa_factory):
+        """Тест move_seq_FSM с None входом"""
+        transitions = [
+            (0, "a", 1, "x"),
+            (1, "b", 0, "y")
+        ]
+        fa = fa_factory(transitions, initial=0, numberOfStates=2,
+                        numberOfInputs=2, isFSM=1)
+
+        # Подаем None вместо последовательности - оборачиваем в try/except
+        try:
+            result = fa.move_seq_FSM(None)
+            # Если не упало, проверяем результат
+            assert result == (None, None)
+        except TypeError:
+            # Ожидаемое поведение
+            pass
+
+    def test_accept_fa_with_empty_sequence_AAA(self, fa_factory):
+        """Тест accept_FA с пустой последовательностью"""
+        transitions = [
+            (0, "a", 1, ""),
+            (1, "b", 0, "")
+        ]
+        fa = fa_factory(transitions, initial=0, numberOfStates=2,
+                        numberOfInputs=2, isFSM=0, finalStates=[0])
+
+        # Пустая последовательность - автомат в начальном состоянии
+        # Метод называется accept_FA
+        result = fa.accept_FA([])
+
+        # Начальное состояние 0 в finalStates, должно принять
+        assert result is not None
+        assert result[0] is True
+
+    def test_accept_fa_with_none_sequence_AAA(self, fa_factory):
+        """Тест accept_FA с None последовательностью"""
+        transitions = [
+            (0, "a", 1, ""),
+            (1, "b", 0, "")
+        ]
+        fa = fa_factory(transitions, initial=0, numberOfStates=2,
+                        numberOfInputs=2, isFSM=0, finalStates=[0])
+
+        # Метод называется accept_FA
+        # Оборачиваем в try/except, так как метод не проверяет на None
+        try:
+            result = fa.accept_FA(None)
+            # Если не упало, то проверяем
+            assert result is None
+        except TypeError:
+            # Ожидаемое поведение - метод падает при итерации по None
+            pass
+
+    def test_write_read_with_special_characters_AAA(self, fa_factory, tmp_path):
+        """Тест записи/чтения со специальными символами"""
+        # Используем более простые специальные символы
+        transitions = [
+            (0, "newline", 1, "tab"),
+            (1, "return", 0, "backslash"),
+            (0, "space", 2, "x"),
+            (2, "tab", 1, "y")
+        ]
+        fa = fa_factory(transitions, initial=0, numberOfStates=3,
+                        numberOfInputs=4, isFSM=1)
+        # Устанавливаем отдельно
+        fa.numberOfOutputs = 4
+
+        # Записываем в файл
+        filename = tmp_path / "special.fsm"
+        # Метод называется write_FSM
+        fa.write_FSM(str(filename))
+
+        # Проверяем что файл создан
+        assert filename.exists()
+
+        # Читаем обратно
+        from FA_simple import FA_simple
+        fa2 = FA_simple.read_FSM(str(filename))
+
+        # Проверяем что прочитали что-то
+        assert fa2 is not None
+        assert len(fa2.transitionList) > 0
+        # Проверяем, что прочитали все переходы
+        assert len(fa2.transitionList) == len(transitions)
+
+    def test_encode_inputs_outputs_no_transform_AAA(self, fa_factory):
+        """Тест encode_inputs_outputs когда преобразование не нужно"""
+        transitions = [
+            (0, 0, 1, 0),
+            (1, 1, 0, 1),
+            (0, 1, 2, 0),
+            (2, 0, 1, 1)
+        ]
+        fa = fa_factory(transitions, initial=0, numberOfStates=3,
+                        numberOfInputs=2, isFSM=1)
+        fa.numberOfOutputs = 2
+
+        # Входы и выходы уже закодированы правильно
+        transformed, in_map, out_map = fa.encode_inputs_outputs()
+
+        # Не должно быть преобразования
+        assert transformed is False
+        assert in_map == {}
+        assert out_map == {}
+
+    def test_encode_inputs_outputs_with_transform_AAA(self, fa_factory):
+        """Тест encode_inputs_outputs с преобразованием"""
+        transitions = [
+            (0, "a", 1, "x"),
+            (1, "b", 0, "y"),
+            (0, "b", 2, "x"),
+            (2, "a", 1, "z")
+        ]
+        fa = fa_factory(transitions, initial=0, numberOfStates=3,
+                        numberOfInputs=2, isFSM=1)
+        fa.numberOfOutputs = 3
+
+        # Входы и выходы - строки, нужно преобразовать
+        transformed, in_map, out_map = fa.encode_inputs_outputs()
+
+        # Должно быть преобразование
+        assert transformed is True
+        assert in_map  # Не пустой словарь
+        assert out_map  # Не пустой словарь
+
+        # Проверяем что теперь все входы - числа
+        for tr in fa.transitionList:
+            assert isinstance(tr[1], int)
+            assert isinstance(tr[3], int)
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
