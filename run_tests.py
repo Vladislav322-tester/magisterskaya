@@ -3,10 +3,13 @@
 Система тестирования для проекта:
 «Модульное тестирование системы анализа и синтеза конечных и расширенных автоматов»
 """
+import re
 import subprocess
 import sys
+import traceback
 from pathlib import Path
 from datetime import datetime
+
 
 
 def run_command(cmd: str, description: str = "") -> tuple[bool, str]:
@@ -47,7 +50,7 @@ def parse_pytest_output(output: str) -> tuple[int, int]:
         line = line.strip()
         if 'passed' in line or 'failed' in line:
             # Примеры: "69 passed in 1.23s" или "68 passed, 1 failed in 1.23s"
-            import re
+
 
             # Ищем числа перед "passed" и "failed"
             passed_match = re.search(r'(\d+)\s+passed', line)
@@ -67,7 +70,6 @@ def parse_coverage_output(output: str) -> dict:
 
     for line in output.split('\n'):
         if 'TOTAL' in line and '%' in line:
-            import re
 
             # Ищем числа в строке
             numbers = re.findall(r'\d+', line)
@@ -222,6 +224,6 @@ if __name__ == "__main__":
         sys.exit(130)
     except Exception as e:
         print(f"\n❌ Критическая ошибка: {e}")
-        import traceback
+
         traceback.print_exc()
         sys.exit(1)

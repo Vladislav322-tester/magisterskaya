@@ -5,9 +5,10 @@
 import os
 import sys
 import tempfile
+import pytest
+from io import StringIO
 from pathlib import Path
 
-import pytest
 
 # Добавляем src в путь для импорта
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -50,7 +51,6 @@ class TestFASimpleInitialization:
 
     def test_init_with_defaults_AAA(self):
         """Тест инициализации с значениями по умолчанию (строки 9-10)"""
-        from FA_simple import FA_simple
 
         fa = FA_simple()
 
@@ -690,8 +690,6 @@ class TestFASimpleAdditionalCoverage:
 
         # Act & Assert - должен просто напечатать ошибку, не падать
         # Используем capsys для перехвата вывода
-        import sys
-        from io import StringIO
 
         old_stdout = sys.stdout
         sys.stdout = StringIO()
