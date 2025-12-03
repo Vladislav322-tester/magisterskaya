@@ -11,7 +11,6 @@ from pathlib import Path
 from datetime import datetime
 
 
-
 def run_command(cmd: str, description: str = "") -> tuple[bool, str]:
     """Запустить команду и вернуть результат"""
     print(f"\n▶️  {description}...")
@@ -49,9 +48,6 @@ def parse_pytest_output(output: str) -> tuple[int, int]:
     for line in reversed(lines):  # Ищем с конца
         line = line.strip()
         if 'passed' in line or 'failed' in line:
-            # Примеры: "69 passed in 1.23s" или "68 passed, 1 failed in 1.23s"
-
-
             # Ищем числа перед "passed" и "failed"
             passed_match = re.search(r'(\d+)\s+passed', line)
             failed_match = re.search(r'(\d+)\s+failed', line)
@@ -70,7 +66,6 @@ def parse_coverage_output(output: str) -> dict:
 
     for line in output.split('\n'):
         if 'TOTAL' in line and '%' in line:
-
             # Ищем числа в строке
             numbers = re.findall(r'\d+', line)
             if len(numbers) >= 3:
@@ -95,61 +90,61 @@ def main() -> int:
     print(f"📅 Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
     print(f"📁 Проект: {Path.cwd().name}")
 
-    # 1. ПРОВЕРКА ТЕСТОВ ПО ОТДЕЛЬНОСТИ
+    # 1. ПРОВЕРКА ОБЫЧНЫХ МОДУЛЬНЫХ ТЕСТОВ
     print("\n" + "─" * 40)
-    print("  1. ЗАПУСК МОДУЛЬНЫХ ТЕСТОВ")
+    print("  1. ЗАПУСК ОБЫЧНЫХ МОДУЛЬНЫХ ТЕСТОВ")
     print("─" * 40)
 
     success_unit, output_unit = run_command(
         "pytest tests/unit/test_fa_simple.py -v",
-        "Модульные тесты FA_simple"
+        "Обычные модульные тесты FA_simple"
     )
 
     passed_unit, total_unit = parse_pytest_output(output_unit)
     print(f"   📊 Результат: {passed_unit}/{total_unit} тестов")
 
-    # 2. ИНТЕГРАЦИОННЫЕ ТЕСТЫ
+    # 2. ТЕСТЫ С HYPOTHESIS (РАНДОМИЗИРОВАННЫЕ)
     print("\n" + "─" * 40)
-    print("  2. ЗАПУСК ИНТЕГРАЦИОННЫХ ТЕСТОВ")
+    print("  2. ЗАПУСК РАНДОМИЗИРОВАННЫХ ТЕСТОВ (HYPOTHESIS)")
     print("─" * 40)
 
-    success_integration, output_integration = run_command(
-        "pytest tests/integration/test_transformations.py -v",
-        "Интеграционные тесты"
+    success_hypothesis, output_hypothesis = run_command(
+        "pytest tests/unit/test_fa_simple_hypothesis.py -v",
+        "Тесты с Hypothesis"
     )
 
-    passed_integration, total_integration = parse_pytest_output(output_integration)
-    print(f"   📊 Результат: {passed_integration}/{total_integration} тестов")
+    passed_hypothesis, total_hypothesis = parse_pytest_output(output_hypothesis)
+    print(f"   📊 Результат: {passed_hypothesis}/{total_hypothesis} тестов")
 
-    # 3. ПОКРЫТИЕ КОДА
+    # 3. ПОКРЫТИЕ КОДА ОТ ОБЫЧНЫХ ТЕСТОВ
     print("\n" + "─" * 40)
     print("  3. АНАЛИЗ ПОКРЫТИЯ КОДА")
     print("─" * 40)
 
-    # Coverage от модульных тестов
+    # Coverage от обычных тестов
     success_cov_unit, output_cov_unit = run_command(
         "pytest tests/unit/test_fa_simple.py --cov=src.FA_simple --cov-report=term-missing",
-        "Coverage от модульных тестов"
+        "Coverage от обычных тестов"
     )
 
     cov_unit = parse_coverage_output(output_cov_unit)
-    print(f"   📈 Покрытие: {cov_unit['percentage']:.1f}%")
+    print(f"   📈 Покрытие от обычных тестов: {cov_unit['percentage']:.1f}%")
     print(f"      Строк: {cov_unit['total']}, Непокрыто: {cov_unit['missed']}")
 
-    # Coverage от интеграционных тестов
-    success_cov_integration, output_cov_integration = run_command(
-        "pytest tests/integration/test_transformations.py --cov=src.FA_simple --cov-report=term-missing",
-        "Coverage от интеграционных тестов"
+    # Coverage от Hypothesis тестов
+    success_cov_hypothesis, output_cov_hypothesis = run_command(
+        "pytest tests/unit/test_fa_simple_hypothesis.py --cov=src.FA_simple --cov-report=term-missing",
+        "Coverage от тестов с Hypothesis"
     )
 
-    cov_integration = parse_coverage_output(output_cov_integration)
-    print(f"   📈 Покрытие: {cov_integration['percentage']:.1f}%")
-    print(f"      Строк: {cov_integration['total']}, Непокрыто: {cov_integration['missed']}")
+    cov_hypothesis = parse_coverage_output(output_cov_hypothesis)
+    print(f"   📈 Покрытие от Hypothesis тестов: {cov_hypothesis['percentage']:.1f}%")
+    print(f"      Строк: {cov_hypothesis['total']}, Непокрыто: {cov_hypothesis['missed']}")
 
-    # Общее coverage
+    # Общее coverage от всех тестов
     success_cov_total, output_cov_total = run_command(
-        "pytest tests/ --cov=src --cov-report=term-missing",
-        "Общее покрытие кода"
+        "pytest tests/unit/ --cov=src.FA_simple --cov-report=term-missing",
+        "Общее покрытие от всех тестов"
     )
 
     cov_total = parse_coverage_output(output_cov_total)
@@ -161,56 +156,79 @@ def main() -> int:
     print("  📊 ИТОГОВЫЙ ОТЧЕТ")
     print("=" * 80)
 
-    total_passed = passed_unit + passed_integration
-    total_tests = total_unit + total_integration
+    total_passed = passed_unit + passed_hypothesis
+    total_tests = total_unit + total_hypothesis
 
     print(f"\n🎯 РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ:")
-    print(f"   • Модульные тесты: {passed_unit}/{total_unit} пройдено")
-    print(f"   • Интеграционные тесты: {passed_integration}/{total_integration} пройдено")
+    print(f"   • Обычные тесты: {passed_unit}/{total_unit} пройдено")
+    print(f"   • Тесты с Hypothesis: {passed_hypothesis}/{total_hypothesis} пройдено")
     print(f"   • Всего тестов: {total_tests}")
     print(f"   • Пройдено тестов: {total_passed}")
 
+    print(f"\n📊 СТАТИСТИКА ТЕСТОВ:")
+    print(f"   • Обычные тесты: {total_unit} тестов")
+    print(f"   • Hypothesis тесты: {total_hypothesis} тестов")
+    if total_tests > 0:
+        hypothesis_percentage = (total_hypothesis / total_tests) * 100
+        print(f"   • Hypothesis составляет: {hypothesis_percentage:.1f}% от всех тестов")
+
     print(f"\n📈 ПОКРЫТИЕ КОДА:")
-    print(f"   • От модульных тестов: {cov_unit['percentage']:.1f}%")
-    print(f"   • От интеграционных тестов: {cov_integration['percentage']:.1f}%")
+    print(f"   • От обычных тестов: {cov_unit['percentage']:.1f}%")
+    print(f"   • От тестов с Hypothesis: {cov_hypothesis['percentage']:.1f}%")
     print(f"   • Общее покрытие: {cov_total['percentage']:.1f}%")
+    print(f"   • Непокрытых строк: {cov_total['missed']} из {cov_total['total']}")
 
     # 5. ОЦЕНКА
     print("\n" + "─" * 40)
     print("  🏆 ОЦЕНКА РЕЗУЛЬТАТОВ")
     print("─" * 40)
 
-    all_tests_passed = (passed_unit == total_unit) and (passed_integration == total_integration)
+    all_tests_passed = (passed_unit == total_unit) and (passed_hypothesis == total_hypothesis)
 
     if all_tests_passed:
         print("   ✅ ВСЕ ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО!")
 
-        if cov_total['percentage'] >= 90:
+        # Оценка покрытия
+        if cov_total['percentage'] >= 95:
             print(f"   🏆 ОТЛИЧНОЕ покрытие кода: {cov_total['percentage']:.1f}%")
+            print("   💪 Проект готов к использованию!")
+        elif cov_total['percentage'] >= 90:
+            print(f"   👍 ОЧЕНЬ ХОРОШЕЕ покрытие: {cov_total['percentage']:.1f}%")
+            print("   🚀 Можно продолжать разработку")
+        elif cov_total['percentage'] >= 85:
+            print(f"   ✅ ХОРОШЕЕ покрытие: {cov_total['percentage']:.1f}%")
+            print("   📝 Рекомендуется добавить тесты для edge cases")
         elif cov_total['percentage'] >= 80:
-            print(f"   👍 ХОРОШЕЕ покрытие кода: {cov_total['percentage']:.1f}%")
+            print(f"   ⚠️  УДОВЛЕТВОРИТЕЛЬНОЕ покрытие: {cov_total['percentage']:.1f}%")
+            print("   🔧 Нужно добавить больше тестов")
         elif cov_total['percentage'] >= 70:
-            print(f"   ✅ УДОВЛЕТВОРИТЕЛЬНОЕ покрытие: {cov_total['percentage']:.1f}%")
+            print(f"   ⚠️  СРЕДНЕЕ покрытие: {cov_total['percentage']:.1f}%")
+            print("   🛠️  Требуется доработка тестов")
         else:
-            print(f"   ⚠️ Покрытие можно улучшить: {cov_total['percentage']:.1f}%")
+            print(f"   ❗ НИЗКОЕ покрытие: {cov_total['percentage']:.1f}%")
+            print("   🛠️  Требуется существенная доработка тестов")
 
         return 0
     else:
         print("   ⚠️ ЕСТЬ ПРОБЛЕМЫ С ТЕСТАМИ")
 
         if passed_unit < total_unit:
-            print(f"   ❌ Модульные тесты: {total_unit - passed_unit} тестов не прошло")
+            failed_unit = total_unit - passed_unit
+            print(f"   ❌ Обычные тесты: {failed_unit} тестов не прошло")
 
-        if passed_integration < total_integration:
-            print(f"   ❌ Интеграционные тесты: {total_integration - passed_integration} тестов не прошло")
+        if passed_hypothesis < total_hypothesis:
+            failed_hypothesis = total_hypothesis - passed_hypothesis
+            print(f"   ❌ Тесты с Hypothesis: {failed_hypothesis} тестов не прошло")
 
         print("\n🔧 ДЛЯ ОТЛАДКИ:")
-        print("   • Запустите тесты с детальным выводом:")
-        print("     pytest tests/ -v")
+        print("   • Запустите все тесты с детальным выводом:")
+        print("     pytest tests/unit/ -v")
         print("   • Только упавшие тесты:")
-        print("     pytest tests/ --lf")
+        print("     pytest tests/unit/ --lf")
         print("   • Конкретный упавший тест:")
-        print("     pytest tests/ -k 'название_теста' -v")
+        print("     pytest tests/unit/ -k 'название_теста' -v")
+        print("   • Тесты с Hypothesis с отладочным выводом:")
+        print("     pytest tests/unit/test_fa_simple_hypothesis.py -v -s")
 
         return 1
 
@@ -224,6 +242,5 @@ if __name__ == "__main__":
         sys.exit(130)
     except Exception as e:
         print(f"\n❌ Критическая ошибка: {e}")
-
         traceback.print_exc()
         sys.exit(1)
