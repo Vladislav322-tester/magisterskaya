@@ -1,7 +1,8 @@
 """
 Моки для класса FA
 """
-from typing import List, Tuple, Set, Any
+
+from typing import Any, List, Set, Tuple
 
 
 class MockFA:
@@ -12,7 +13,7 @@ class MockFA:
             ("s0", "a", "s1"),
             ("s1", "b", "s2"),
             ("s2", "c", "s0"),
-            ("s0", "d", "s2")
+            ("s0", "d", "s2"),
         ]
         self.initialState: str = "s0"
         self.isFSM: int = 0
@@ -55,7 +56,7 @@ class MockFADeterministic(MockFA):
             (2, "a", 0),
             (0, "c", 2),
             (1, "c", 0),
-            (2, "b", 1)
+            (2, "b", 1),
         ]
         self.initialState = 0
         self.finalStates = {2}
@@ -74,7 +75,7 @@ class MockFANonDeterministic(MockFA):
             (0, "a", 2),  # Недетерминированный переход
             (1, "b", 2),
             (2, "a", 0),
-            (1, "a", 0)
+            (1, "a", 0),
         ]
         self.initialState = 0
         self.finalStates = {2}

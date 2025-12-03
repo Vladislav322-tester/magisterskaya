@@ -2,14 +2,14 @@
 Настоящие интеграционные тесты для FA_simple
 Тестируют взаимодействие методов между собой
 """
-import pytest
-import tempfile
-import os
-from pathlib import Path
+
 import sys
+from pathlib import Path
+
+import pytest
 
 # Добавляем src в путь
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from src.FA_simple import FA_simple
 
@@ -27,7 +27,7 @@ class TestFA_simpleReadWriteIntegration:
             (0, "a", 1, "x"),
             (1, "b", 0, "y"),
             (0, "c", 2, "z"),
-            (2, "a", 1, "w")
+            (2, "a", 1, "w"),
         ]
 
         filepath = tmp_path / "integration_test.fsm"
@@ -91,7 +91,7 @@ class TestFA_simpleEncodeCompleteIntegration:
         fa = FA_simple()
         fa.transitionList = [
             ("state0", "input_a", "state1", "output_x"),
-            ("state1", "input_b", "state2", "output_y")
+            ("state1", "input_b", "state2", "output_y"),
         ]
         fa.initialState = "state0"
         fa.isFSM = 1
@@ -106,7 +106,7 @@ class TestFA_simpleEncodeCompleteIntegration:
         encode_result = fa.encode_inputs_outputs(forced_transform=True)
 
         # 3. Доопределяем (теперь все числа)
-        reaction = fa.complete(comptype='loop')
+        reaction = fa.complete(comptype="loop")
 
         # Assert
         assert states_changed is True, "Состояния должны были перекодироваться"
@@ -133,7 +133,7 @@ class TestFA_simpleEncodeCompleteIntegration:
 
         # Act
         # 1. Доопределяем через DCS
-        reaction = fa.complete(comptype='DCS', reaction=999)
+        reaction = fa.complete(comptype="DCS", reaction=999)
 
         # 2. Симулируем определенный вход
         output1, state1 = fa.move_seq_FSM([0])
@@ -155,11 +155,7 @@ class TestFA_simpleSimulationChainIntegration:
         """Цепочка для FSM: создание -> симуляция -> проверка"""
         # Arrange
         fa = FA_simple()
-        fa.transitionList = [
-            (0, "a", 1, "x"),
-            (1, "b", 2, "y"),
-            (2, "c", 0, "z")
-        ]
+        fa.transitionList = [(0, "a", 1, "x"), (1, "b", 2, "y"), (2, "c", 0, "z")]
         fa.initialState = 0
         fa.isFSM = 1
 
@@ -183,12 +179,7 @@ class TestFA_simpleSimulationChainIntegration:
         """Цепочка для FA: создание -> принятие/отклонение"""
         # Arrange
         fa = FA_simple()
-        fa.transitionList = [
-            (0, "a", 1),
-            (1, "b", 2),
-            (0, "c", 3),
-            (3, "d", 4)
-        ]
+        fa.transitionList = [(0, "a", 1), (1, "b", 2), (0, "c", 3), (3, "d", 4)]
         fa.initialState = 0
         fa.isFSM = 0
         fa.finalStates = {2, 4}  # Два финальных состояния
@@ -216,18 +207,12 @@ class TestFA_simpleTransformationsIntegration:
         """Переименование входов -> симуляция с новыми именами"""
         # Arrange
         fa = FA_simple()
-        fa.transitionList = [
-            (0, "old_a", 1, "x"),
-            (1, "old_b", 0, "y")
-        ]
+        fa.transitionList = [(0, "old_a", 1, "x"), (1, "old_b", 0, "y")]
         fa.initialState = 0
         fa.isFSM = 1
         fa.numberOfInputs = 2
 
-        rename_map = {
-            "old_a": "new_alpha",
-            "old_b": "new_beta"
-        }
+        rename_map = {"old_a": "new_alpha", "old_b": "new_beta"}
 
         # Act
         # 1. Переименовываем
@@ -259,7 +244,7 @@ class TestFA_simpleTransformationsIntegration:
             (2, "z", 3, "c"),
             (0, "a", 1, "x"),
             (1, "b", 2, "y"),
-            (0, "b", 2, "w")
+            (0, "b", 2, "w"),
         ]
         fa.initialState = 0
         fa.isFSM = 1
@@ -296,7 +281,7 @@ class TestFA_simpleComplexIntegration:
         fa = FA_simple()
         fa.transitionList = [
             ("start", "action1", "middle", "response1"),
-            ("middle", "action2", "end", "response2")
+            ("middle", "action2", "end", "response2"),
         ]
         fa.initialState = "start"
         fa.isFSM = 1
@@ -315,7 +300,7 @@ class TestFA_simpleComplexIntegration:
         print(f"После encode_inputs_outputs: {fa.transitionList}")
 
         # 3. Доопределяем петлями
-        reaction = fa.complete(comptype='loop')
+        reaction = fa.complete(comptype="loop")
         print(f"После complete: {fa.transitionList}")
         print(f"Реакция: {reaction}")
 
@@ -344,12 +329,10 @@ class TestFASimpleEdgeCaseCoverage:
 
     def test_move_seq_fsm_with_none_input_AAA(self, fa_factory):
         """Тест move_seq_FSM с None входом"""
-        transitions = [
-            (0, "a", 1, "x"),
-            (1, "b", 0, "y")
-        ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=2,
-                        numberOfInputs=2, isFSM=1)
+        transitions = [(0, "a", 1, "x"), (1, "b", 0, "y")]
+        fa = fa_factory(
+            transitions, initial=0, numberOfStates=2, numberOfInputs=2, isFSM=1
+        )
 
         # Подаем None вместо последовательности - оборачиваем в try/except
         try:
@@ -362,12 +345,15 @@ class TestFASimpleEdgeCaseCoverage:
 
     def test_accept_fa_with_empty_sequence_AAA(self, fa_factory):
         """Тест accept_FA с пустой последовательностью"""
-        transitions = [
-            (0, "a", 1, ""),
-            (1, "b", 0, "")
-        ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=2,
-                        numberOfInputs=2, isFSM=0, finalStates=[0])
+        transitions = [(0, "a", 1, ""), (1, "b", 0, "")]
+        fa = fa_factory(
+            transitions,
+            initial=0,
+            numberOfStates=2,
+            numberOfInputs=2,
+            isFSM=0,
+            finalStates=[0],
+        )
 
         # Пустая последовательность - автомат в начальном состоянии
         # Метод называется accept_FA
@@ -379,12 +365,15 @@ class TestFASimpleEdgeCaseCoverage:
 
     def test_accept_fa_with_none_sequence_AAA(self, fa_factory):
         """Тест accept_FA с None последовательностью"""
-        transitions = [
-            (0, "a", 1, ""),
-            (1, "b", 0, "")
-        ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=2,
-                        numberOfInputs=2, isFSM=0, finalStates=[0])
+        transitions = [(0, "a", 1, ""), (1, "b", 0, "")]
+        fa = fa_factory(
+            transitions,
+            initial=0,
+            numberOfStates=2,
+            numberOfInputs=2,
+            isFSM=0,
+            finalStates=[0],
+        )
 
         # Метод называется accept_FA
         # Оборачиваем в try/except, так как метод не проверяет на None
@@ -403,10 +392,11 @@ class TestFASimpleEdgeCaseCoverage:
             (0, "newline", 1, "tab"),
             (1, "return", 0, "backslash"),
             (0, "space", 2, "x"),
-            (2, "tab", 1, "y")
+            (2, "tab", 1, "y"),
         ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=3,
-                        numberOfInputs=4, isFSM=1)
+        fa = fa_factory(
+            transitions, initial=0, numberOfStates=3, numberOfInputs=4, isFSM=1
+        )
         # Устанавливаем отдельно
         fa.numberOfOutputs = 4
 
@@ -418,8 +408,6 @@ class TestFASimpleEdgeCaseCoverage:
         # Проверяем что файл создан
         assert filename.exists()
 
-        # Читаем обратно
-        from FA_simple import FA_simple
         fa2 = FA_simple.read_FSM(str(filename))
 
         # Проверяем что прочитали что-то
@@ -430,14 +418,10 @@ class TestFASimpleEdgeCaseCoverage:
 
     def test_encode_inputs_outputs_no_transform_AAA(self, fa_factory):
         """Тест encode_inputs_outputs когда преобразование не нужно"""
-        transitions = [
-            (0, 0, 1, 0),
-            (1, 1, 0, 1),
-            (0, 1, 2, 0),
-            (2, 0, 1, 1)
-        ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=3,
-                        numberOfInputs=2, isFSM=1)
+        transitions = [(0, 0, 1, 0), (1, 1, 0, 1), (0, 1, 2, 0), (2, 0, 1, 1)]
+        fa = fa_factory(
+            transitions, initial=0, numberOfStates=3, numberOfInputs=2, isFSM=1
+        )
         fa.numberOfOutputs = 2
 
         # Входы и выходы уже закодированы правильно
@@ -454,10 +438,11 @@ class TestFASimpleEdgeCaseCoverage:
             (0, "a", 1, "x"),
             (1, "b", 0, "y"),
             (0, "b", 2, "x"),
-            (2, "a", 1, "z")
+            (2, "a", 1, "z"),
         ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=3,
-                        numberOfInputs=2, isFSM=1)
+        fa = fa_factory(
+            transitions, initial=0, numberOfStates=3, numberOfInputs=2, isFSM=1
+        )
         fa.numberOfOutputs = 3
 
         # Входы и выходы - строки, нужно преобразовать
@@ -472,6 +457,7 @@ class TestFASimpleEdgeCaseCoverage:
         for tr in fa.transitionList:
             assert isinstance(tr[1], int)
             assert isinstance(tr[3], int)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

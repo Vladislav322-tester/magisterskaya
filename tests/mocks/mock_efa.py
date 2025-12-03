@@ -1,21 +1,23 @@
 """
 Моки для класса MYEFA
 """
+
 from collections import namedtuple
-from typing import List, Set, Dict, Any
+from typing import Any, Dict, List, Set
 
 
 class MockEFA:
     """Заглушка для класса MYEFA с реализацией основных методов"""
 
     def __init__(self):
-        self.Transition = namedtuple('Transition',
-                                     ['state1', 'input', 'state2',
-                                      'predicate', 'update_function', 'output'])
+        self.Transition = namedtuple(
+            "Transition",
+            ["state1", "input", "state2", "predicate", "update_function", "output"],
+        )
 
         self.transitionList: List[Any] = [
             self.Transition("q0", "a", "q1", None, None, "output1"),
-            self.Transition("q1", "b", "q2", "x > 0", "x = x + 1", "output2")
+            self.Transition("q1", "b", "q2", "x > 0", "x = x + 1", "output2"),
         ]
         self.initialState: str = "q0"
         self.finalStates: Set[str] = {"q2"}
@@ -40,8 +42,10 @@ class MockEFA:
             Выходной символ или None
         """
         for transition in self.transitionList:
-            if (transition.state1 == self.currentState and
-                    transition.input == input_symbol):
+            if (
+                transition.state1 == self.currentState
+                and transition.input == input_symbol
+            ):
 
                 # Проверяем предикат
                 if transition.predicate:
@@ -78,10 +82,12 @@ class MockEFAComplex(MockEFA):
     def __init__(self):
         super().__init__()
         # Добавляем больше переходов
-        self.transitionList.extend([
-            self.Transition("q2", "c", "q0", None, None, "output3"),
-            self.Transition("q0", "d", "q2", "x < 10", "x = x * 2", "output4")
-        ])
+        self.transitionList.extend(
+            [
+                self.Transition("q2", "c", "q0", None, None, "output3"),
+                self.Transition("q0", "d", "q2", "x < 10", "x = x * 2", "output4"),
+            ]
+        )
         self.numberOfStates = 4
         self.variables = {"x": 0, "y": 5, "active": True}
 

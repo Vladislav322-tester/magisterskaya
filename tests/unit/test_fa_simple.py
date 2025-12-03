@@ -1,23 +1,25 @@
 """
 Модульные тесты для класса FA_simple
 """
-import pytest
-import tempfile
+
 import os
 import sys
+import tempfile
 from pathlib import Path
 
-# Добавляем src в путь для импорта
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
+import pytest
 
-from src.FA_simple import FA_simple
+# Добавляем src в путь для импорта
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+
 from data_samples import (
-    FSM_SAMPLES,
-    FA_SAMPLES,
-    GETTERS_SAMPLES,
     COMPLETENESS_SAMPLES,
-    EDGE_CASES
+    EDGE_CASES,
+    FA_SAMPLES,
+    FSM_SAMPLES,
+    GETTERS_SAMPLES,
 )
+from src.FA_simple import FA_simple
 
 
 class TestFASimpleInitialization:
@@ -49,6 +51,7 @@ class TestFASimpleInitialization:
     def test_init_with_defaults_AAA(self):
         """Тест инициализации с значениями по умолчанию (строки 9-10)"""
         from FA_simple import FA_simple
+
         fa = FA_simple()
 
         # Внимание! В __init__ класса FA_simple:
@@ -69,18 +72,15 @@ class TestFASimpleInitialization:
 
     def test_inequality_detailed_AAA(self, fa_factory):
         """Тест неравенства с разными переходами (строка 29)"""
-        fa1 = fa_factory([
-            (0, "a", 1, "x"),
-            (1, "b", 0, "y")
-        ])
+        fa1 = fa_factory([(0, "a", 1, "x"), (1, "b", 0, "y")])
 
-        fa2 = fa_factory([
-            (0, "a", 1, "x"),
-            (1, "b", 2, "y")  # Разное конечное состояние
-        ])
+        fa2 = fa_factory(
+            [(0, "a", 1, "x"), (1, "b", 2, "y")]  # Разное конечное состояние
+        )
 
         assert fa1 != fa2
         assert not (fa1 == fa2)
+
 
 class TestFASimpleIOOperations:
     """Тесты операций ввода/вывода"""
@@ -117,7 +117,7 @@ final_state 2
 1 b 2
 0 b 2"""
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.fa', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".fa", delete=False) as f:
             f.write(fa_content)
             temp_file = f.name
 
@@ -135,10 +135,18 @@ final_state 2
 class TestFASimpleGetters:
     """Тесты getter-методов"""
 
-    @pytest.mark.parametrize("transitions, expected_states, expected_actions, expected_outputs",
-                             GETTERS_SAMPLES)
-    def test_getters_AAA(self, fa_factory, transitions, expected_states,
-                         expected_actions, expected_outputs):
+    @pytest.mark.parametrize(
+        "transitions, expected_states, expected_actions, expected_outputs",
+        GETTERS_SAMPLES,
+    )
+    def test_getters_AAA(
+        self,
+        fa_factory,
+        transitions,
+        expected_states,
+        expected_actions,
+        expected_outputs,
+    ):
         """Параметризованный тест всех getter-методов"""
         # Определяем тип автомата по длине переходов
         is_fsm = len(transitions[0]) == 4 if transitions else False
@@ -177,15 +185,25 @@ class TestFASimpleGetters:
 class TestFASimpleChecks:
     """Тесты методов проверки"""
 
-    @pytest.mark.parametrize("transitions, numberOfStates, numberOfInputs, expected_is_complete",
-                             COMPLETENESS_SAMPLES)
-    def test_is_complete_AAA(self, fa_factory, transitions, numberOfStates,
-                             numberOfInputs, expected_is_complete):
+    @pytest.mark.parametrize(
+        "transitions, numberOfStates, numberOfInputs, expected_is_complete",
+        COMPLETENESS_SAMPLES,
+    )
+    def test_is_complete_AAA(
+        self,
+        fa_factory,
+        transitions,
+        numberOfStates,
+        numberOfInputs,
+        expected_is_complete,
+    ):
         """Параметризованный тест проверки полноты"""
-        fa = fa_factory(transitions,
-                       numberOfStates=numberOfStates,
-                       numberOfInputs=numberOfInputs,
-                       isFSM=1)
+        fa = fa_factory(
+            transitions,
+            numberOfStates=numberOfStates,
+            numberOfInputs=numberOfInputs,
+            isFSM=1,
+        )
         assert fa.is_complete() == expected_is_complete
 
     def test_check_states_consistency_AAA(self, fa_factory):
@@ -203,10 +221,7 @@ class TestFASimpleChecks:
     def test_check_states_for_consistency_false_AAA(self, fa_factory):
         """Тест check_states_for_consistency возвращающего False (строка 231)"""
         # Создаем автомат с разными типами состояний
-        transitions = [
-            (0, "a", "1", "x"),  # 0 - int, "1" - str
-            ("1", "b", 0, "y")
-        ]
+        transitions = [(0, "a", "1", "x"), ("1", "b", 0, "y")]  # 0 - int, "1" - str
         fa = fa_factory(transitions)
 
         assert fa.check_states_for_consistency() is False
@@ -216,7 +231,7 @@ class TestFASimpleChecks:
         # Создаем автомат с разными типами входов/выходов
         transitions = [
             (0, 0, 1, "x"),  # 0 - int, "x" - str
-            (1, "b", 0, 1)  # "b" - str, 1 - int
+            (1, "b", 0, 1),  # "b" - str, 1 - int
         ]
         fa = fa_factory(transitions)
 
@@ -247,6 +262,7 @@ class TestFASimpleChecks:
             assert result is True
         except IndexError:
             pass
+
 
 class TestFASimpleTransformations:
     """Тесты методов преобразования автоматов"""
@@ -289,7 +305,9 @@ class TestFASimpleTransformations:
         """Тест кодирования входов и выходов"""
         transitions = [("q0", "alpha", "q1", "out1"), ("q1", "beta", "q2", "out2")]
         fa = fa_factory(transitions, isFSM=1)
-        result = fa.encode_inputs_outputs(forced_transform=True, dont_change_original=True)
+        result = fa.encode_inputs_outputs(
+            forced_transform=True, dont_change_original=True
+        )
         # Метод может вернуть tuple или новый автомат
         if isinstance(result, tuple):
             changed, input_map, output_map = result
@@ -311,7 +329,7 @@ class TestFASimpleTransformations:
         fa.encode_states(forced_transform=True)
         fa.encode_inputs_outputs(forced_transform=True)
 
-        reaction = fa.complete(comptype='loop')
+        reaction = fa.complete(comptype="loop")
         assert fa.is_complete()
         assert isinstance(reaction, int)
         # Должно быть 4 перехода (2 состояния × 2 входа)
@@ -328,7 +346,7 @@ class TestFASimpleTransformations:
         fa.encode_states(forced_transform=True)
         fa.encode_inputs_outputs(forced_transform=True)
 
-        reaction = fa.complete(comptype='DCS', reaction=999)
+        reaction = fa.complete(comptype="DCS", reaction=999)
         assert fa.is_complete()
         assert fa.numberOfStates == original_state_count + 1
         assert reaction == 999
@@ -336,17 +354,16 @@ class TestFASimpleTransformations:
     def test_encode_states_no_transformation_AAA(self, fa_factory):
         """Тест encode_states когда преобразование не нужно (строка 310)"""
         # Автомат с уже закодированными целыми числами
-        transitions = [
-            (0, "a", 1, "x"),
-            (1, "b", 2, "y"),
-            (2, "c", 0, "z")
-        ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=3,
-                        numberOfInputs=3, isFSM=1)
+        transitions = [(0, "a", 1, "x"), (1, "b", 2, "y"), (2, "c", 0, "z")]
+        fa = fa_factory(
+            transitions, initial=0, numberOfStates=3, numberOfInputs=3, isFSM=1
+        )
 
         # Проверяем, что состояния уже целые числа
-        assert all(isinstance(tr[0], int) and isinstance(tr[2], int)
-                   for tr in fa.transitionList)
+        assert all(
+            isinstance(tr[0], int) and isinstance(tr[2], int)
+            for tr in fa.transitionList
+        )
 
         transformed, mapping1, mapping2 = fa.encode_states()
 
@@ -361,10 +378,11 @@ class TestFASimpleTransformations:
         transitions = [
             ("('0',)", "a", "('1',)", "x"),
             ("('1',)", "b", "('2',)", "y"),
-            ("('2',)", "c", "('0',)", "z")
+            ("('2',)", "c", "('0',)", "z"),
         ]
-        fa = fa_factory(transitions, initial="('0',)", numberOfStates=3,
-                        numberOfInputs=3, isFSM=1)
+        fa = fa_factory(
+            transitions, initial="('0',)", numberOfStates=3, numberOfInputs=3, isFSM=1
+        )
 
         transformed, mapping1, mapping2 = fa.encode_states(is_abstraction=True)
 
@@ -375,32 +393,28 @@ class TestFASimpleTransformations:
 
     def test_complete_with_invalid_reaction_type_AAA(self, fa_factory):
         """Тест complete с некорректным типом реакции (строка 446)"""
-        transitions = [
-            (0, 0, 1, 0),
-            (1, 0, 0, 1)
-        ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=2,
-                        numberOfInputs=2, isFSM=1)
+        transitions = [(0, 0, 1, 0), (1, 0, 0, 1)]
+        fa = fa_factory(
+            transitions, initial=0, numberOfStates=2, numberOfInputs=2, isFSM=1
+        )
         # Устанавливаем numberOfOutputs отдельно
         fa.numberOfOutputs = 2
 
         # Пытаемся вызвать complete с некорректной реакцией (не int)
-        result = fa.complete(comptype='DCS', reaction="invalid")
+        result = fa.complete(comptype="DCS", reaction="invalid")
 
         # Проверяем, что метод завершился без исключения
         assert result is None
 
     def test_complete_with_invalid_type_AAA(self, fa_factory):
         """Тест complete с некорректным типом (строка 454-455)"""
-        transitions = [
-            (0, 0, 1, 0),
-            (1, 0, 0, 1)
-        ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=2,
-                        numberOfInputs=2, isFSM=1)
+        transitions = [(0, 0, 1, 0), (1, 0, 0, 1)]
+        fa = fa_factory(
+            transitions, initial=0, numberOfStates=2, numberOfInputs=2, isFSM=1
+        )
 
         # Пытаемся вызвать complete с некорректным типом
-        result = fa.complete(comptype='invalid_type')
+        result = fa.complete(comptype="invalid_type")
 
         # Проверяем, что метод завершился без исключения
         assert result is None
@@ -410,14 +424,15 @@ class TestFASimpleTransformations:
         transitions = [
             (0, 0, 1, 0),  # Только один переход, автомат неполный
         ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=2,
-                        numberOfInputs=2, isFSM=1)
+        fa = fa_factory(
+            transitions, initial=0, numberOfStates=2, numberOfInputs=2, isFSM=1
+        )
         fa.numberOfOutputs = 1  # Устанавливаем отдельно
 
         initial_outputs_count = len(fa.get_outputs_list())
 
         # Вызываем complete
-        result = fa.complete(comptype='DCS', reaction=999)
+        result = fa.complete(comptype="DCS", reaction=999)
 
         # Проверяем результат
         assert result == 999
@@ -431,12 +446,13 @@ class TestFASimpleTransformations:
         transitions = [
             (0, 0, 1, 0),  # Только один переход, автомат неполный
         ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=2,
-                        numberOfInputs=2, isFSM=1)
+        fa = fa_factory(
+            transitions, initial=0, numberOfStates=2, numberOfInputs=2, isFSM=1
+        )
         fa.numberOfOutputs = 1  # Устанавливаем отдельно
 
         # Вызываем complete
-        result = fa.complete(comptype='loop')
+        result = fa.complete(comptype="loop")
 
         # Проверяем результат
         assert result is not None
@@ -445,13 +461,17 @@ class TestFASimpleTransformations:
         # Проверяем, что numberOfOutputs увеличился
         assert fa.numberOfOutputs == 2
 
+
 class TestFASimpleSimulation:
     """Тесты методов симуляции"""
 
-    @pytest.mark.parametrize("transitions, input_seq, expected_output, expected_final_state",
-                             [s[:4] for s in FSM_SAMPLES])
-    def test_move_seq_fsm_parametrized_AAA(self, fa_factory, transitions, input_seq,
-                                          expected_output, expected_final_state):
+    @pytest.mark.parametrize(
+        "transitions, input_seq, expected_output, expected_final_state",
+        [s[:4] for s in FSM_SAMPLES],
+    )
+    def test_move_seq_fsm_parametrized_AAA(
+        self, fa_factory, transitions, input_seq, expected_output, expected_final_state
+    ):
         """Параметризованный тест симуляции FSM"""
         fa = fa_factory(transitions, initial=transitions[0][0], isFSM=1)
         output_seq, final_state = fa.move_seq_FSM(input_seq)
@@ -467,10 +487,13 @@ class TestFASimpleSimulation:
         assert output_seq is None
         assert final_state is None
 
-    @pytest.mark.parametrize("transitions, final_states, input_seq, expected_accept",
-                             [s[:4] for s in FA_SAMPLES])
-    def test_accept_fa_parametrized_AAA(self, fa_factory, transitions, final_states,
-                                       input_seq, expected_accept):
+    @pytest.mark.parametrize(
+        "transitions, final_states, input_seq, expected_accept",
+        [s[:4] for s in FA_SAMPLES],
+    )
+    def test_accept_fa_parametrized_AAA(
+        self, fa_factory, transitions, final_states, input_seq, expected_accept
+    ):
         """Параметризованный тест принятия FA"""
         fa = fa_factory(transitions, finalStates=final_states, isFSM=0)
         result = fa.accept_FA(input_seq)
@@ -495,12 +518,15 @@ class TestFASimpleSimulation:
 
     def test_accept_fa_returns_none_on_error_AAA(self, fa_factory):
         """Тест accept_FA возвращающего None при ошибке (строка 482-486)"""
-        transitions = [
-            (0, "a", 1, ""),
-            (1, "b", 2, "")
-        ]
-        fa = fa_factory(transitions, initial=0, numberOfStates=3,
-                        numberOfInputs=2, isFSM=0, finalStates=[2])
+        transitions = [(0, "a", 1, ""), (1, "b", 2, "")]
+        fa = fa_factory(
+            transitions,
+            initial=0,
+            numberOfStates=3,
+            numberOfInputs=2,
+            isFSM=0,
+            finalStates=[2],
+        )
 
         # Подаем последовательность, для которой нет перехода
         # Метод называется accept_FA, а не accept_fa
@@ -510,12 +536,15 @@ class TestFASimpleSimulation:
 
     def test_accept_fa_with_non_int_final_state_AAA(self, fa_factory):
         """Тест accept_FA с не-int конечным состоянием"""
-        transitions = [
-            ("q0", "a", "q1", ""),
-            ("q1", "b", "q2", "")
-        ]
-        fa = fa_factory(transitions, initial="q0", numberOfStates=3,
-                        numberOfInputs=2, isFSM=0, finalStates=["q2"])
+        transitions = [("q0", "a", "q1", ""), ("q1", "b", "q2", "")]
+        fa = fa_factory(
+            transitions,
+            initial="q0",
+            numberOfStates=3,
+            numberOfInputs=2,
+            isFSM=0,
+            finalStates=["q2"],
+        )
 
         # Подаем корректную последовательность
         # Метод называется accept_FA
@@ -533,13 +562,16 @@ class TestFASimpleSimulation:
             # Ожидаемое поведение - ValueError при попытке int("q2")
             assert "invalid literal for int()" in str(e)
 
+
 class TestFASimpleEdgeCases:
     """Тесты граничных случаев"""
 
-    @pytest.mark.parametrize("transitions, input_seq, expected_output, expected_final_state",
-                             EDGE_CASES)
-    def test_edge_cases_AAA(self, fa_factory, transitions, input_seq,
-                           expected_output, expected_final_state):
+    @pytest.mark.parametrize(
+        "transitions, input_seq, expected_output, expected_final_state", EDGE_CASES
+    )
+    def test_edge_cases_AAA(
+        self, fa_factory, transitions, input_seq, expected_output, expected_final_state
+    ):
         """Тест граничных случаев"""
         if not transitions:
             # Тест пустого автомата
@@ -602,7 +634,7 @@ class TestFASimpleAdditionalCoverage:
 
         # Assert
         assert filepath.exists()
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             content = f.read()
             # Проверяем, что состояние 2 исключено из начальных
             assert "n0 0 1" in content
@@ -665,7 +697,7 @@ class TestFASimpleAdditionalCoverage:
         sys.stdout = StringIO()
 
         try:
-            result = fa.complete(comptype='invalid')
+            result = fa.complete(comptype="invalid")
             output = sys.stdout.getvalue()
             # Проверяем, что вывелось сообщение об ошибке
             assert "Error! Specify completion type" in output
@@ -718,6 +750,7 @@ p 3
 
         # Assert
         assert result is None  # Должен вернуть None согласно коду
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

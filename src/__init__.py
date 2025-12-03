@@ -7,5 +7,3 @@
 __version__ = "1.0.0"
 __author__ = "Ваше Имя"
 __all__ = ["FA_simple"]
-
-from FA_simple import FA_simple
