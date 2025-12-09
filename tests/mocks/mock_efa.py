@@ -75,26 +75,3 @@ class MockEFA:
         if update_func == "x = x + 1":
             self.variables["x"] = self.variables.get("x", 0) + 1
 
-
-class MockEFAComplex(MockEFA):
-    """Более сложная заглушка MYEFA с дополнительной логикой"""
-
-    def __init__(self):
-        super().__init__()
-        # Добавляем больше переходов
-        self.transitionList.extend(
-            [
-                self.Transition("q2", "c", "q0", None, None, "output3"),
-                self.Transition("q0", "d", "q2", "x < 10", "x = x * 2", "output4"),
-            ]
-        )
-        self.numberOfStates = 4
-        self.variables = {"x": 0, "y": 5, "active": True}
-
-    def _check_predicate(self, predicate: str, context: Dict) -> bool:
-        """Расширенная проверка предикатов"""
-        if predicate == "x < 10":
-            return self.variables.get("x", 0) < 10
-        elif predicate == "active == True":
-            return self.variables.get("active", False) is True
-        return super()._check_predicate(predicate, context)

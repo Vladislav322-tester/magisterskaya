@@ -3,7 +3,7 @@
 """
 
 from hypothesis import strategies as st
-from typing import Dict, List, Set
+from typing import Dict
 import itertools
 
 # Импортируем базовые стратегии
@@ -11,8 +11,6 @@ from .base_strategies import (
     state_strategy,
     simple_input,
     output_strategy,
-    transition_strategy,
-    can_convert_to_int
 )
 
 
@@ -205,86 +203,8 @@ def numeric_automaton_data(draw, is_fsm: bool = True) -> Dict:
     return result
 
 
-@st.composite
-def string_automaton_data(draw, is_fsm: bool = True) -> Dict:
-    """Генерирует данные для строкового автомата."""
-    states = ['q0', 'q1', 'q2', 'q3']
-    inputs = ['a', 'b', 'c']
-
-    num_transitions = draw(st.integers(min_value=3, max_value=8))
-    transitions = []
-
-    for _ in range(num_transitions):
-        from_state = draw(st.sampled_from(states))
-        to_state = draw(st.sampled_from(states))
-        inp = draw(st.sampled_from(inputs))
-
-        if is_fsm:
-            outputs = ['x', 'y', 'z', '']
-            output = draw(st.sampled_from(outputs))
-            transitions.append((from_state, inp, to_state, output))
-        else:
-            transitions.append((from_state, inp, to_state))
-
-    result = {
-        'transitions': transitions,
-        'initial_state': 'q0',
-        'states': states[:draw(st.integers(min_value=2, max_value=4))],
-        'inputs': inputs,
-        'is_fsm': is_fsm
-    }
-
-    if not is_fsm:
-        num_final = draw(st.integers(min_value=1, max_value=3))
-        final_states = set(draw(st.lists(
-            st.sampled_from(states),
-            min_size=num_final,
-            max_size=num_final,
-            unique=True
-        )))
-        result['final_states'] = final_states
-
-    return result
-
-
 # ============================================
-# 2. ВСПОМОГАТЕЛЬНЫЕ СТРАТЕГИИ
-# ============================================
-
-@st.composite
-def input_sequence(draw, automaton_data: Dict, max_length: int = 5) -> List:
-    """Генерирует входную последовательность для автомата."""
-    inputs = automaton_data.get('inputs', [])
-
-    if not inputs:
-        return []
-
-    length = draw(st.integers(min_value=0, max_value=min(max_length, 5)))
-    return draw(st.lists(
-        st.sampled_from(inputs),
-        min_size=length,
-        max_size=length
-    ))
-
-
-@st.composite
-def rename_dict(draw, inputs: List) -> Dict:
-    """Генерирует словарь для переименования входов."""
-    new_names = draw(st.lists(
-        st.one_of(
-            st.integers(min_value=100, max_value=110),
-            st.sampled_from(['new_a', 'new_b', 'new_c', 'inp1', 'inp2'])
-        ),
-        min_size=len(inputs),
-        max_size=len(inputs),
-        unique=True
-    ))
-
-    return dict(zip(inputs, new_names))
-
-
-# ============================================
-# 3. ФУНКЦИИ ДЛЯ СОЗДАНИЯ АВТОМАТОВ
+# 2. ФУНКЦИЯ ДЛЯ СОЗДАНИЯ АВТОМАТОВ
 # ============================================
 
 def create_fa_from_data(data: dict):

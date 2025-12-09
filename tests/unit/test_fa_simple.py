@@ -7,12 +7,6 @@ import sys
 import tempfile
 import pytest
 from io import StringIO
-from pathlib import Path
-
-
-# Добавляем src в путь для импорта
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
-
 from data_samples import (
     COMPLETENESS_SAMPLES,
     EDGE_CASES,
@@ -467,7 +461,7 @@ class TestFASimpleSimulation:
 
     @pytest.mark.parametrize(
         "transitions, input_seq, expected_output, expected_final_state",
-        [s[:4] for s in FSM_SAMPLES],
+        FSM_SAMPLES,
     )
     def test_move_seq_fsm_parametrized_AAA(
         self, fa_factory, transitions, input_seq, expected_output, expected_final_state
@@ -489,7 +483,7 @@ class TestFASimpleSimulation:
 
     @pytest.mark.parametrize(
         "transitions, final_states, input_seq, expected_accept",
-        [s[:4] for s in FA_SAMPLES],
+        FA_SAMPLES,
     )
     def test_accept_fa_parametrized_AAA(
         self, fa_factory, transitions, final_states, input_seq, expected_accept

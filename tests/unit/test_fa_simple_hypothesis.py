@@ -3,81 +3,16 @@
 Все тесты используют паттерн AAA (Arrange-Act-Assert).
 """
 
-import sys
-from pathlib import Path
-import tempfile
 import pytest
 from hypothesis import given, strategies as st, settings, assume, HealthCheck
-import os
-import io  # Добавили импорт
-
-# Получаем абсолютные пути
-current_file = Path(__file__).resolve()
-tests_dir = current_file.parent.parent
-project_root = tests_dir.parent
-
-# Добавляем пути в sys.path
-sys.path.insert(0, str(project_root / "src"))
-sys.path.insert(0, str(tests_dir))
-
 from src.FA_simple import FA_simple
-
-# Пробуем импортировать стратегии
-try:
-    from hypothesis_strategies.smart_strategies import (
+from ..hypothesis_strategies.smart_strategies import (
         automaton_data,
         deterministic_automaton_data,
         complete_automaton_data,
         numeric_automaton_data,
-        string_automaton_data,
-        input_sequence,
-        rename_dict
-    )
-    from hypothesis_strategies.base_strategies import can_convert_to_int
-
-    HAS_HYPOTHESIS_STRATEGIES = True
-
-    # Определяем функцию create_fa_from_data прямо здесь
-    def create_fa_from_data(data: dict) -> FA_simple:
-        """
-        Создает объект FA_simple из данных, сгенерированных стратегиями.
-        """
-        fa = FA_simple()
-        fa.transitionList = data['transitions']
-        fa.initialState = data['initial_state']
-        fa.isFSM = 1 if data['is_fsm'] else 0
-
-        # Вычисляем количество состояний и входов
-        all_states = set()
-        all_inputs = set()
-        all_outputs = set()
-
-        for trans in data['transitions']:
-            all_states.add(trans[0])
-            all_states.add(trans[2])
-            all_inputs.add(trans[1])
-
-            if data['is_fsm'] and len(trans) > 3:
-                all_outputs.add(trans[3])
-
-        fa.numberOfStates = len(all_states)
-        fa.numberOfInputs = len(all_inputs)
-
-        if data['is_fsm']:
-            fa.numberOfOutputs = len(all_outputs)
-        else:
-            fa.finalStates = data.get('final_states', set())
-
-        return fa
-
-except ImportError:
-    HAS_HYPOTHESIS_STRATEGIES = False
-    print("⚠️ Hypothesis strategies not available")
-
-if not HAS_HYPOTHESIS_STRATEGIES:
-    pytest.skip("Hypothesis strategies not available", allow_module_level=True)
-
-
+        create_fa_from_data
+)
 # ============================================
 # КОНФИГУРАЦИЯ HYPOTHESIS
 # ============================================
@@ -572,24 +507,6 @@ class TestFASimpleHypothesisIO:
 # ============================================
 # ДЕТЕРМИНИРОВАННЫЕ ТЕСТЫ ДЛЯ ОТЛАДКИ
 # ============================================
-
-class TestFASimpleSimpleCases:
-    """Простые тесты для отладки."""
-
-    def test_simple_import_AAA(self):
-        """Простой тест для проверки импортов."""
-        print(f"\n🔧 Проверка импортов:")
-        print(f"   automaton_data: {automaton_data}")
-        print(f"   create_fa_from_data: {create_fa_from_data}")
-        print(f"   can_convert_to_int: {can_convert_to_int}")
-
-        # Просто проверяем что функции доступны
-        assert callable(automaton_data)
-        assert callable(create_fa_from_data)
-        assert callable(can_convert_to_int)
-
-        print("✅ Все импорты работают")
-
 
 class TestFASimpleEdgeCases:
     """Тесты для граничных случаев."""

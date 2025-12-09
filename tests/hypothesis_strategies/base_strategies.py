@@ -67,32 +67,7 @@ def output_strategy(draw) -> Union[int, str]:
 
 
 # ============================================
-# 4. СТРАТЕГИИ ДЛЯ ПЕРЕХОДОВ
-# ============================================
-
-@st.composite
-def transition_strategy(draw, is_fsm: bool = True) -> Tuple:
-    """Генерирует корректный переход автомата."""
-    use_numeric = draw(st.booleans())
-
-    if use_numeric:
-        state_from = draw(numeric_state())
-        state_to = draw(numeric_state())
-    else:
-        state_from = draw(labeled_state())
-        state_to = draw(labeled_state())
-
-    input_sym = draw(simple_input())
-
-    if is_fsm:
-        output_sym = draw(output_strategy())
-        return (state_from, input_sym, state_to, output_sym)
-    else:
-        return (state_from, input_sym, state_to)
-
-
-# ============================================
-# 5. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# 4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ============================================
 
 def can_convert_to_int(value) -> bool:
@@ -102,11 +77,3 @@ def can_convert_to_int(value) -> bool:
         return True
     except (ValueError, TypeError):
         return False
-
-
-def get_state_type(states) -> str:
-    """Определяет тип состояний: 'int', 'str', или 'mixed'."""
-    types = set(type(state).__name__ for state in states)
-    if len(types) == 1:
-        return list(types)[0]
-    return 'mixed'
