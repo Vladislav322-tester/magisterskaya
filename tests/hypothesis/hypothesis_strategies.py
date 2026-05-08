@@ -58,6 +58,36 @@ def valid_fa(draw) -> Dict[str, Any]:
 # ------------------------------------------------------------
 
 @composite
+def valid_fa_with_string_states(draw) -> Dict[str, Any]:
+    """
+    Generates a valid deterministic FA whose states are numeric strings.
+    This exercises state encoding without triggering FA_simple's known
+    int(current_state) limitation in accept_FA.
+    """
+
+    state_numbers = draw(lists(STATE, min_size=1, max_size=5, unique=True))
+    states = [str(s) for s in state_numbers]
+    inputs = draw(lists(INPUT, min_size=1, max_size=2, unique=True))
+
+    transitions = [
+        (s, i, draw(sampled_from(states)))
+        for s in states
+        for i in inputs
+    ]
+
+    return {
+        "transitions": transitions,
+        "initial_state": draw(sampled_from(states)),
+        "states": states,
+        "inputs": inputs,
+        "is_fsm": False,
+        "final_states": set(draw(
+            lists(sampled_from(state_numbers), min_size=1, unique=True)
+        )),
+    }
+
+
+@composite
 def valid_fsm(draw) -> Dict[str, Any]:
     """
     Генерирует корректный ПОЛНЫЙ FSM.
@@ -302,6 +332,7 @@ def create_complete_fa_from_data(
 
 __all__ = [
     "valid_fa",
+    "valid_fa_with_string_states",
     "valid_fsm",
     "incomplete_fa",
     "edge_fa",

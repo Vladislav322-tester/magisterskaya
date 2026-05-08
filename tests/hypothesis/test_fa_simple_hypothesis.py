@@ -8,11 +8,13 @@ Property-based тесты для FA_simple.
 """
 
 from hypothesis import given, settings, HealthCheck
+from hypothesis import strategies as st
 import random
 from src.fa_factory import FA as FA_simple
 
 from tests.hypothesis.hypothesis_strategies import (
     valid_fa,
+    valid_fa_with_string_states,
     broken_fa,
     incomplete_fa,
     random_word,
@@ -29,6 +31,39 @@ COMMON_SETTINGS = settings(
 )
 
 
+def _words_from_alphabet(data):
+    return st.lists(st.sampled_from(data["inputs"]), min_size=0, max_size=10)
+
+
+def _reference_accept(data, word):
+    transition_by_state_input = {
+        (str(t[0]), str(t[1])): t[2]
+        for t in data["transitions"]
+        if len(t) >= 3
+    }
+
+    current_state = data["initial_state"]
+
+    for symbol in word:
+        key = (str(current_state), str(symbol))
+        if key not in transition_by_state_input:
+            return None
+        current_state = transition_by_state_input[key]
+
+    try:
+        final_state_candidate = int(current_state)
+    except (TypeError, ValueError):
+        final_state_candidate = current_state
+
+    return final_state_candidate in data["final_states"]
+
+
+def _acceptance_value(result):
+    if result is None:
+        return None
+    return result[0]
+
+
 # =========================================================
 # 1. BEHAVIORAL СВОЙСТВА
 # =========================================================
@@ -43,6 +78,15 @@ def test_accept_deterministic(data, word):
     fa = create_complete_fa_from_data(data, FA_simple)
 
     assert fa.accept_FA(word) == fa.accept_FA(word)
+
+
+@given(valid_fa(), st.data())
+@COMMON_SETTINGS
+def test_accept_matches_reference_model(data, draw_data):
+    word = draw_data.draw(_words_from_alphabet(data))
+    fa = create_complete_fa_from_data(data, FA_simple)
+
+    assert _acceptance_value(fa.accept_FA(word)) == _reference_accept(data, word)
 
 
 # ---------------------------------------------------------
@@ -63,6 +107,20 @@ def test_encode_preserves_behavior(data, word):
     assert before == after
 
 
+@given(valid_fa_with_string_states(), st.data())
+@COMMON_SETTINGS
+def test_encode_states_preserves_language_for_string_states(data, draw_data):
+    word = draw_data.draw(_words_from_alphabet(data))
+    fa = create_complete_fa_from_data(data, FA_simple)
+
+    before = fa.accept_FA(word)
+    fa.encode_states()
+    after = fa.accept_FA(word)
+
+    assert before == after
+    assert _acceptance_value(after) == _reference_accept(data, word)
+
+
 # ---------------------------------------------------------
 # 1.3 порядок переходов не влияет
 # ---------------------------------------------------------
@@ -76,6 +134,18 @@ def test_order_independence(data, word):
     random.shuffle(fa2.transitionList)
 
     assert fa1.accept_FA(word) == fa2.accept_FA(word)
+
+
+@given(valid_fa(), st.data())
+@COMMON_SETTINGS
+def test_order_independence_matches_reference_model(data, draw_data):
+    word = draw_data.draw(_words_from_alphabet(data))
+    fa = create_complete_fa_from_data(data, FA_simple)
+    expected = _reference_accept(data, word)
+
+    random.shuffle(fa.transitionList)
+
+    assert _acceptance_value(fa.accept_FA(word)) == expected
 
 
 # =========================================================
@@ -194,6 +264,19 @@ def test_complete_adds_transitions(data):
 # ---------------------------------------------------------
 # 3.1 accept не падает
 # ---------------------------------------------------------
+
+@given(incomplete_fa())
+@COMMON_SETTINGS
+def test_complete_preserves_existing_transitions(data):
+    fa = create_complete_fa_from_data(data, FA_simple)
+    old_transitions = list(fa.transitionList)
+
+    fa.complete()
+
+    assert len(fa.transitionList) >= len(old_transitions)
+    for transition in old_transitions:
+        assert transition in fa.transitionList
+
 
 @given(valid_fa(), random_word())
 @COMMON_SETTINGS
