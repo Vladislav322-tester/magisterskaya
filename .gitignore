@@ -1,11 +1,10 @@
-@'
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# Python
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
@@ -17,14 +16,14 @@ dist/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# Virtual environments
 venv/
 env/
 .venv/
 env.bak/
 venv.bak/
 
-# OS
+# OS files
 .DS_Store
 .DS_Store?
 ._*
@@ -33,17 +32,20 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Testing
+# pytest / cache / hypothesis
+.pytest_cache/
+.hypothesis/
+.cache/
+nosetests.xml
+
+# Coverage
 .coverage
 .coverage.*
-.cache
-nosetests.xml
 coverage.xml
+coverage.json
+htmlcov/
 *.cover
 *.py,cover
-.hypothesis/
-.pytest_cache/
 
 # Logs
 *.log
-'@ | Out-File -FilePath .gitignore -Encoding UTF8
