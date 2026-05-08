@@ -7,7 +7,7 @@ Property-based тесты для FA_simple.
 - Проверка устойчивости (robustness)
 """
 
-from hypothesis import given, settings, HealthCheck
+from hypothesis import given, settings, HealthCheck, assume
 from hypothesis import strategies as st
 import random
 from src.fa_factory import FA as FA_simple
@@ -64,6 +64,32 @@ def _acceptance_value(result):
     return result[0]
 
 
+def _word_to_missing_transition(data):
+    transition_by_state_input = {
+        (str(t[0]), str(t[1])): t[2]
+        for t in data["transitions"]
+        if len(t) >= 3
+    }
+
+    queue = [(data["initial_state"], [])]
+    visited = {str(data["initial_state"])}
+
+    while queue:
+        state, prefix = queue.pop(0)
+
+        for symbol in data["inputs"]:
+            key = (str(state), str(symbol))
+            if key not in transition_by_state_input:
+                return prefix + [symbol]
+
+            next_state = transition_by_state_input[key]
+            if str(next_state) not in visited:
+                visited.add(str(next_state))
+                queue.append((next_state, prefix + [symbol]))
+
+    return None
+
+
 # =========================================================
 # 1. BEHAVIORAL СВОЙСТВА
 # =========================================================
@@ -87,6 +113,18 @@ def test_accept_matches_reference_model(data, draw_data):
     fa = create_complete_fa_from_data(data, FA_simple)
 
     assert _acceptance_value(fa.accept_FA(word)) == _reference_accept(data, word)
+
+
+@given(valid_fa(), st.data())
+@COMMON_SETTINGS
+def test_accept_matches_reference_model_for_multiple_words(data, draw_data):
+    words = draw_data.draw(
+        st.lists(_words_from_alphabet(data), min_size=2, max_size=5)
+    )
+    fa = create_complete_fa_from_data(data, FA_simple)
+
+    for word in words:
+        assert _acceptance_value(fa.accept_FA(word)) == _reference_accept(data, word)
 
 
 # ---------------------------------------------------------
@@ -276,6 +314,34 @@ def test_complete_preserves_existing_transitions(data):
     assert len(fa.transitionList) >= len(old_transitions)
     for transition in old_transitions:
         assert transition in fa.transitionList
+
+
+@given(incomplete_fa(), st.data())
+@COMMON_SETTINGS
+def test_complete_preserves_defined_behavior(data, draw_data):
+    word = draw_data.draw(_words_from_alphabet(data))
+    expected = _reference_accept(data, word)
+    assume(expected is not None)
+
+    fa = create_complete_fa_from_data(data, FA_simple)
+    before = _acceptance_value(fa.accept_FA(word))
+
+    fa.complete()
+
+    assert before == expected
+    assert _acceptance_value(fa.accept_FA(word)) == expected
+
+
+@given(incomplete_fa())
+@COMMON_SETTINGS
+def test_missing_transition_matches_reference_semantics(data):
+    word = _word_to_missing_transition(data)
+    assume(word is not None)
+
+    fa = create_complete_fa_from_data(data, FA_simple)
+
+    assert _reference_accept(data, word) is None
+    assert fa.accept_FA(word) is None
 
 
 @given(valid_fa(), random_word())
