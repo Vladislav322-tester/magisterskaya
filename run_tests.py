@@ -17,7 +17,10 @@ from typing import Dict, List
 
 
 RUNS = int(os.getenv("FA_RUNS", "1"))
-COV_TARGET = "src"
+COV_TARGETS = {
+    "FA_simple": "src.FA_simple",
+    "FA_dict": "src.FA_dict",
+}
 
 TEST_SUITES = {
     "UNIT": "tests/unit/",
@@ -66,12 +69,16 @@ def _count(line: str, label_regex: str) -> int:
     return int(match.group(1)) if match else 0
 
 
-def parse_coverage(output: str) -> float:
+def coverage_target_for_impl(impl: str) -> str:
+    return COV_TARGETS.get(impl, f"src.{impl}")
+
+
+def parse_coverage(output: str) -> float | None:
     for line in output.splitlines():
         if line.strip().startswith("TOTAL"):
             match = re.search(r"(\d+(?:\.\d+)?)%", line)
-            return float(match.group(1)) / 100 if match else 0.0
-    return 0.0
+            return float(match.group(1)) / 100 if match else None
+    return None
 
 
 def pytest_run_ok(command_ok: bool, passed: int, total: int) -> bool:
@@ -130,8 +137,9 @@ def run_tests_once(
     if mutation:
         env["FA_MUTATION"] = mutation
 
+    coverage_target = coverage_target_for_impl(impl)
     if with_coverage:
-        cmd = f"pytest {test_path} --cov={COV_TARGET} --cov-report=term"
+        cmd = f"pytest {test_path} --cov={coverage_target} --cov-report=term"
     else:
         cmd = f"pytest {test_path} -q"
 
@@ -140,12 +148,18 @@ def run_tests_once(
         env=env,
     )
     passed, total = parse_pytest_summary(out)
+    coverage = parse_coverage(out) if with_coverage else 0.0
+    coverage_failed = with_coverage and coverage is None
+    invalid_run = total == 0 or has_infrastructure_error(out) or coverage_failed
+    all_passed = pytest_run_ok(ok, passed, total) and not coverage_failed
     return {
         "passed": passed,
         "total": total,
-        "all_passed": pytest_run_ok(ok, passed, total),
-        "invalid_run": total == 0 or has_infrastructure_error(out),
-        "coverage": parse_coverage(out) if with_coverage else 0.0,
+        "all_passed": all_passed,
+        "invalid_run": invalid_run,
+        "coverage": coverage if coverage is not None else 0.0,
+        "coverage_target": coverage_target if with_coverage else None,
+        "coverage_failed": coverage_failed,
         "time": duration,
         "output": out,
     }
@@ -237,6 +251,7 @@ def evaluate(test_path: str, suite_name: str, impl: str) -> Dict:
         }
 
     print(f"Factory: {details}")
+    print(f"Coverage target: {coverage_target_for_impl(impl)}")
     base = run_tests_multiple(test_path, impl)
     mutations = compute_mutation_score(test_path, impl)
 
