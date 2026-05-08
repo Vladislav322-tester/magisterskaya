@@ -9,7 +9,7 @@ Property-based тесты для FA_simple.
 
 from hypothesis import given, settings, HealthCheck
 import random
-import os
+from src.fa_factory import FA as FA_simple
 
 from tests.hypothesis.hypothesis_strategies import (
     valid_fa,
@@ -18,21 +18,6 @@ from tests.hypothesis.hypothesis_strategies import (
     random_word,
     create_complete_fa_from_data,
 )
-
-# ---------------------------------------------------------
-# MUTATION SUPPORT
-# ---------------------------------------------------------
-
-MUTATION = os.getenv("FA_MUTATION")
-
-if MUTATION:
-    FA_simple = __import__(
-        f"src.mutations.{MUTATION}",
-        fromlist=["FA_simple"]
-    ).FA_simple
-else:
-    from src.FA_simple import FA_simple
-
 
 # ---------------------------------------------------------
 # SETTINGS

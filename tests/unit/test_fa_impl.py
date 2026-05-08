@@ -15,7 +15,7 @@ Impl-level тесты для FA_simple
 """
 
 import pytest
-from src.FA_simple import FA_simple
+from src.fa_factory import FA as FA_simple
 
 
 # =========================================================

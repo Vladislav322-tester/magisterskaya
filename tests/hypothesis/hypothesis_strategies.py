@@ -211,7 +211,8 @@ def random_word():
 
 def create_complete_fa_from_data(
     data: Dict,
-    fa_class: Type
+    fa_class: Type,
+    apply_complete: bool = False,
 ):
     """
     Универсальная фабрика для создания автомата из данных стратегии.
@@ -227,10 +228,11 @@ def create_complete_fa_from_data(
     if hasattr(fa_class, "from_data"):
         fa = fa_class.from_data(data)
 
-        try:
-            fa.complete()
-        except Exception:
-            pass
+        if apply_complete:
+            try:
+                fa.complete()
+            except Exception:
+                pass
 
         return fa
 
@@ -285,10 +287,11 @@ def create_complete_fa_from_data(
     # ---------------------------------------------------------
     # делаем complete (как раньше)
     # ---------------------------------------------------------
-    try:
-        fa.complete()
-    except Exception:
-        pass
+    if apply_complete:
+        try:
+            fa.complete()
+        except Exception:
+            pass
 
     return fa
 

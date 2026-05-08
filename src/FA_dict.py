@@ -15,6 +15,7 @@ class FA_dict:
         self.transitions = {}  # (state, input) -> next_state
         self.initialState = None
         self.finalStates = set()
+        self.isFSM = 0
 
     # ---------------------------------------------------------
     # INIT FROM DATA (адаптация под твои стратегии)
@@ -28,6 +29,7 @@ class FA_dict:
         fa.inputs = set(data.get("inputs", []))
         fa.initialState = data.get("initial_state")
         fa.finalStates = set(data.get("final_states", []))
+        fa.isFSM = 1 if data.get("is_fsm", False) else 0
 
         for t in data.get("transitions", []):
             if len(t) >= 3:
@@ -62,6 +64,25 @@ class FA_dict:
 
     def get_inputs_list(self):
         return list(self.inputs)
+
+    def get_actions_list(self):
+        return self.get_inputs_list()
+
+    @property
+    def transitionList(self):
+        return [(s, i, ns) for (s, i), ns in self.transitions.items()]
+
+    @transitionList.setter
+    def transitionList(self, transitions):
+        self.transitions = {}
+        self.states = set()
+        self.inputs = set()
+        for t in transitions:
+            if len(t) >= 3:
+                s, i, ns = t[:3]
+                self.states.update([s, ns])
+                self.inputs.add(i)
+                self.transitions[(s, i)] = ns
 
     # ---------------------------------------------------------
     # ENCODE STATES (аналог твоего метода)

@@ -14,14 +14,7 @@ MODEL TESTS (теоретический уровень)
 """
 
 import pytest
-import os
-
-MUTATION = os.getenv("FA_MUTATION")
-
-if MUTATION:
-    FA_simple = __import__(f"src.mutations.{MUTATION}", fromlist=["FA_simple"]).FA_simple
-else:
-    from src.FA_simple import FA_simple
+from src.fa_factory import FA as FA_simple
 
 
 # =========================================================

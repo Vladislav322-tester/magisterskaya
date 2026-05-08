@@ -3,7 +3,7 @@
 """
 
 import pytest
-from src.FA_simple import FA_simple
+from src.fa_factory import FA
 
 
 # ============================================
@@ -33,7 +33,7 @@ def fa_factory():
         numberOfOutputs=None,
     ):
         # Создаем объект
-        fa = FA_simple()
+        fa = FA()
 
         # Устанавливаем переходы (по умолчанию пустой список)
         fa.transitionList = transitions or []
