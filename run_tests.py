@@ -1,410 +1,311 @@
 #!/usr/bin/env python3
 """
-Система тестирования для проекта:
-«Модульное тестирование системы анализа и синтеза конечных и расширенных автоматов»
+Экспериментальный раннер для оценки качества тестирования FA.
+
+Сравниваются три подхода:
+1. UNIT TESTS
+2. HYPOTHESIS TESTS
+3. COMBINED (UNIT + HYPOTHESIS)
+
+Метрика TSQI:
+TSQI = 0.25 * Coverage + 0.45 * Mutation + 0.2 * Stability + 0.1 * Performance
 """
+
+import os
 import re
 import subprocess
-import sys
 import time
-import traceback
-from pathlib import Path
-from datetime import datetime
+from typing import Dict, List
+from src.fa_factory import FA
 
 
-def run_command(cmd: str, description: str = "", measure_time: bool = False) -> tuple[bool, str, float]:
-    """Запустить команду и вернуть результат с временем выполнения"""
-    print(f"\n▶️  {description}...")
-    print(f"   Команда: {cmd}")
+# ------------------------------------------------------------
+# CONFIG
+# ------------------------------------------------------------
 
-    try:
-        start_time = time.time()
+RUNS = 10
 
-        result = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='ignore'
-        )
+TEST_SUITES = {
+    "UNIT": "tests/unit/",
+    "HYPOTHESIS": "tests/hypothesis/",
+    "COMBINED": "tests/",
+}
 
-        end_time = time.time()
-        execution_time = end_time - start_time if measure_time else 0.0
+IMPLEMENTATIONS = [
+    "FA_simple",
+    "FA_dict",
+]
 
-        success = (result.returncode == 0)
-        output = result.stdout + "\n" + result.stderr
+# покрытие считаем по всему src (чтобы работало для любой реализации)
+COV_TARGET = "src"
 
-        if success:
-            print("   ✅ Успешно")
-        else:
-            print("   ❌ Ошибка", end="")
+MUTATIONS = [
+    "FA_simple_mut_01",
+    "FA_simple_mut_02",
+    "FA_simple_mut_03",
+    "FA_simple_mut_04",
+    "FA_simple_mut_05",
+    "FA_simple_mut_06",
+    "FA_simple_mut_07",
+    "FA_simple_mut_08",
+    "FA_simple_mut_09",
+    "FA_simple_mut_10",
+    "FA_simple_mut_11",
+    "FA_simple_mut_12",
+    "FA_dict_mut_01",
+    "FA_dict_mut_02",
+    "FA_dict_mut_03",
+    "FA_dict_mut_04",
+    "FA_dict_mut_05",
+    "FA_dict_mut_06",
+]
 
-        return success, output, execution_time
 
-    except Exception as e:
-        print(f"   ❌ Исключение: {e}")
-        return False, str(e), 0.0
+# ------------------------------------------------------------
+# UTILS
+# ------------------------------------------------------------
+
+def run_command(cmd: str) -> tuple[bool, str, float]:
+    start = time.perf_counter()
+
+    result = subprocess.run(
+        cmd,
+        shell=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="ignore",
+    )
+
+    duration = time.perf_counter() - start
+    success = result.returncode == 0
+    output = result.stdout + "\n" + result.stderr
+
+    return success, output, duration
 
 
-def parse_pytest_output(output: str) -> tuple[int, int]:
-    """Парсинг вывода pytest для получения количества тестов"""
-    lines = output.strip().split('\n')
-
-    for line in reversed(lines):  # Ищем с конца
-        line = line.strip()
-        if 'passed' in line or 'failed' in line:
-            # Ищем числа перед "passed" и "failed"
-            passed_match = re.search(r'(\d+)\s+passed', line)
-            failed_match = re.search(r'(\d+)\s+failed', line)
-
-            passed = int(passed_match.group(1)) if passed_match else 0
+def parse_pytest_summary(output: str) -> tuple[int, int]:
+    for line in reversed(output.splitlines()):
+        if "passed" in line:
+            passed = int(re.search(r"(\d+)\s+passed", line).group(1))
+            failed_match = re.search(r"(\d+)\s+failed", line)
             failed = int(failed_match.group(1)) if failed_match else 0
-
             return passed, passed + failed
-
     return 0, 0
 
 
-def parse_coverage_output(output: str) -> dict:
-    """Парсинг вывода coverage"""
-    coverage = {"percentage": 0, "total": 0, "missed": 0}
-
-    for line in output.split('\n'):
-        if 'TOTAL' in line and '%' in line:
-            # Ищем числа в строке
-            numbers = re.findall(r'\d+', line)
-            if len(numbers) >= 3:
-                coverage["total"] = int(numbers[0])
-                coverage["missed"] = int(numbers[1])
-
-            # Ищем процент
-            percent_match = re.search(r'(\d+(?:\.\d+)?)%', line)
-            if percent_match:
-                coverage["percentage"] = float(percent_match.group(1))
-
-            break
-
-    return coverage
+def parse_coverage(output: str) -> float:
+    for line in output.splitlines():
+        if line.strip().startswith("TOTAL"):
+            percent = float(re.search(r"(\d+(?:\.\d+)?)%", line).group(1))
+            return percent / 100
+    return 0.0
 
 
-def count_lines_of_code(directory: str, extension: str = ".py") -> int:
-    """Подсчет строк кода в директории"""
-    loc = 0
-    dir_path = Path(directory)
+# ------------------------------------------------------------
+# TEST RUNS
+# ------------------------------------------------------------
 
-    if not dir_path.exists():
-        return 0
+def run_tests_once(test_path: str) -> Dict:
+    cmd = f"pytest {test_path} --cov={COV_TARGET} --cov-report=term"
 
-    for file_path in dir_path.rglob(f"*{extension}"):
-        if file_path.is_file():
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    # Считаем непустые строки
-                    loc += sum(1 for line in f if line.strip())
-            except:
-                continue
+    ok, out, duration = run_command(cmd)
 
-    return loc
+    passed, total = parse_pytest_summary(out)
+    coverage = parse_coverage(out)
 
-
-def count_asserts_in_tests() -> int:
-    """Подсчет количества assert'ов в тестах"""
-    assert_count = 0
-    test_dir = Path("tests")
-
-    if not test_dir.exists():
-        return 0
-
-    for test_file in test_dir.rglob("*.py"):
-        try:
-            with open(test_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-                # Считаем assert'ы
-                assert_count += content.count('assert ')
-                # Также считаем многострочные assert
-                assert_count += content.count('assert\n')
-                assert_count += content.count('assert(')
-        except:
-            continue
-
-    return assert_count
-
-
-def calculate_test_metrics() -> dict:
-    """Вычисление дополнительных метрик тестов"""
-    metrics = {
-        "test_loc": 0,
-        "prod_loc": 0,
-        "test_to_code_ratio": 0.0,
-        "assert_count": 0,
-        "assert_density": 0.0
+    return {
+        "passed": passed,
+        "total": total,
+        "all_passed": passed == total,
+        "time": duration,
+        "coverage": coverage,
     }
 
-    # Считаем LOC тестов
-    metrics["test_loc"] = count_lines_of_code("tests", ".py")
 
-    # Считаем LOC продакшена
-    metrics["prod_loc"] = count_lines_of_code("src", ".py")
+def run_tests_multiple(test_path: str, runs: int = RUNS) -> Dict:
+    results = []
 
-    # Считаем assert'ы
-    metrics["assert_count"] = count_asserts_in_tests()
+    for i in range(runs):
+        print(f"   ▶️ Прогон {i + 1}/{runs}")
+        results.append(run_tests_once(test_path))
 
-    # Рассчитываем производные метрики
-    if metrics["prod_loc"] > 0:
-        metrics["test_to_code_ratio"] = metrics["test_loc"] / metrics["prod_loc"]
+    avg_time = sum(r["time"] for r in results) / runs
+    avg_cov = sum(r["coverage"] for r in results) / runs
+    stability = sum(r["all_passed"] for r in results) / runs
 
-    if metrics["test_loc"] > 0:
-        metrics["assert_density"] = metrics["assert_count"] / metrics["test_loc"]
+    return {
+        "time": avg_time,
+        "coverage": avg_cov,
+        "stability": stability,
+    }
 
-    return metrics
 
+# ------------------------------------------------------------
+# MUTATION TESTING
+# ------------------------------------------------------------
 
-def main() -> int:
-    """Основная функция"""
-    print("=" * 80)
-    print("  🧪 СИСТЕМА ТЕСТИРОВАНИЯ: АНАЛИЗ И СИНТЕЗ АВТОМАТОВ")
-    print("=" * 80)
-    print(f"📅 Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
-    print(f"📁 Проект: {Path.cwd().name}")
-
-    # Общее время начала выполнения скрипта
-    script_start_time = time.time()
-
-    # 1. ПРОВЕРКА ОБЫЧНЫХ МОДУЛЬНЫХ ТЕСТОВ
-    print("\n" + "─" * 40)
-    print("  1. ЗАПУСК ОБЫЧНЫХ МОДУЛЬНЫХ ТЕСТОВ")
-    print("─" * 40)
-
-    success_unit, output_unit, time_unit = run_command(
-        "pytest tests/unit/test_fa_simple.py -v",
-        "Обычные модульные тесты FA_simple",
-        measure_time=True
-    )
-
-    passed_unit, total_unit = parse_pytest_output(output_unit)
-    print(f"   📊 Результат: {passed_unit}/{total_unit} тестов")
-    print(f"   ⏱️  Время выполнения: {time_unit:.2f} сек")
-
-    # 2. ТЕСТЫ С HYPOTHESIS (РАНДОМИЗИРОВАННЫЕ)
-    print("\n" + "─" * 40)
-    print("  2. ЗАПУСК РАНДОМИЗИРОВАННЫХ ТЕСТОВ (HYPOTHESIS)")
-    print("─" * 40)
-
-    success_hypothesis, output_hypothesis, time_hypothesis = run_command(
-        "pytest tests/unit/test_fa_simple_hypothesis.py -v",
-        "Тесты с Hypothesis",
-        measure_time=True
-    )
-
-    passed_hypothesis, total_hypothesis = parse_pytest_output(output_hypothesis)
-    print(f"   📊 Результат: {passed_hypothesis}/{total_hypothesis} тестов")
-    print(f"   ⏱️  Время выполнения: {time_hypothesis:.2f} сек")
-
-    # 3. ПОКРЫТИЕ КОДА ОТ ОБЫЧНЫХ ТЕСТОВ
-    print("\n" + "─" * 40)
-    print("  3. АНАЛИЗ ПОКРЫТИЯ КОДА")
-    print("─" * 40)
-
-    # Coverage от обычных тестов
-    success_cov_unit, output_cov_unit, time_cov_unit = run_command(
-        "pytest tests/unit/test_fa_simple.py --cov=src.FA_simple --cov-report=term-missing",
-        "Coverage от обычных тестов",
-        measure_time=True
-    )
-
-    cov_unit = parse_coverage_output(output_cov_unit)
-    print(f"   📈 Покрытие от обычных тестов: {cov_unit['percentage']:.1f}%")
-    print(f"      Строк: {cov_unit['total']}, Непокрыто: {cov_unit['missed']}")
-    print(f"   ⏱️  Время анализа покрытия: {time_cov_unit:.2f} сек")
-
-    # Coverage от Hypothesis тестов
-    success_cov_hypothesis, output_cov_hypothesis, time_cov_hypothesis = run_command(
-        "pytest tests/unit/test_fa_simple_hypothesis.py --cov=src.FA_simple --cov-report=term-missing",
-        "Coverage от тестов с Hypothesis",
-        measure_time=True
-    )
-
-    cov_hypothesis = parse_coverage_output(output_cov_hypothesis)
-    print(f"   📈 Покрытие от Hypothesis тестов: {cov_hypothesis['percentage']:.1f}%")
-    print(f"      Строк: {cov_hypothesis['total']}, Непокрыто: {cov_hypothesis['missed']}")
-    print(f"   ⏱️  Время анализа покрытия: {time_cov_hypothesis:.2f} сек")
-
-    # Общее coverage от всех тестов
-    success_cov_total, output_cov_total, time_cov_total = run_command(
-        "pytest tests/unit/ --cov=src.FA_simple --cov-report=term-missing",
-        "Общее покрытие от всех тестов",
-        measure_time=True
-    )
-
-    cov_total = parse_coverage_output(output_cov_total)
-    print(f"   📈 Общее покрытие: {cov_total['percentage']:.1f}%")
-    print(f"      Строк: {cov_total['total']}, Непокрыто: {cov_total['missed']}")
-    print(f"   ⏱️  Время анализа покрытия: {time_cov_total:.2f} сек")
-
-    # 4. СБОР ДОПОЛНИТЕЛЬНЫХ МЕТРИК
-    print("\n" + "─" * 40)
-    print("  4. АНАЛИЗ ДОПОЛНИТЕЛЬНЫХ МЕТРИК")
-    print("─" * 40)
-
-    print("\n📊 Анализ метрик кода...")
-    test_metrics = calculate_test_metrics()
-
-    print(f"   • LOC тестов:          {test_metrics['test_loc']}")
-    print(f"   • LOC продакшена:      {test_metrics['prod_loc']}")
-    print(f"   • Test/Code ratio:     {test_metrics['test_to_code_ratio']:.2f}")
-    print(f"   • Количество assert'ов: {test_metrics['assert_count']}")
-    print(f"   • Плотность assert'ов:  {test_metrics['assert_density']:.3f}")
-
-    # 5. ИТОГОВЫЙ ОТЧЕТ
-    print("\n" + "=" * 80)
-    print("  📊 ИТОГОВЫЙ ОТЧЕТ")
-    print("=" * 80)
-
-    total_passed = passed_unit + passed_hypothesis
-    total_tests = total_unit + total_hypothesis
-    total_test_time = time_unit + time_hypothesis
-    total_coverage_time = time_cov_unit + time_cov_hypothesis + time_cov_total
-
-    # Общее время выполнения скрипта
-    script_end_time = time.time()
-    total_script_time = script_end_time - script_start_time
-
-    print(f"\n🎯 РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ:")
-    print(f"   • Обычные тесты: {passed_unit}/{total_unit} пройдено")
-    print(f"   • Тесты с Hypothesis: {passed_hypothesis}/{total_hypothesis} пройдено")
-    print(f"   • Всего тестов: {total_tests}")
-    print(f"   • Пройдено тестов: {total_passed}")
-
-    print(f"\n📊 СТАТИСТИКА ТЕСТОВ:")
-    print(f"   • Обычные тесты: {total_unit} тестов")
-    print(f"   • Hypothesis тесты: {total_hypothesis} тестов")
-    if total_tests > 0:
-        hypothesis_percentage = (total_hypothesis / total_tests) * 100
-        print(f"   • Hypothesis составляет: {hypothesis_percentage:.1f}% от всех тестов")
-
-    print(f"\n⏱️  ВРЕМЯ ВЫПОЛНЕНИЯ:")
-    print(f"   • Обычные тесты:          {time_unit:8.2f} сек")
-    print(f"   • Тесты с Hypothesis:     {time_hypothesis:8.2f} сек")
-    print(f"   • Общее время тестов:     {total_test_time:8.2f} сек")
-
-    if total_tests > 0:
-        avg_test_time = total_test_time / total_tests
-        print(f"   • Среднее время на тест:  {avg_test_time:8.4f} сек")
-
-    print(f"   • Анализ покрытия:        {total_coverage_time:8.2f} сек")
-    print(f"   • Общее время скрипта:    {total_script_time:8.2f} сек")
-
-    print(f"\n📈 ПОКРЫТИЕ КОДА:")
-    print(f"   • От обычных тестов: {cov_unit['percentage']:.1f}%")
-    print(f"   • От тестов с Hypothesis: {cov_hypothesis['percentage']:.1f}%")
-    print(f"   • Общее покрытие: {cov_total['percentage']:.1f}%")
-    print(f"   • Непокрытых строк: {cov_total['missed']} из {cov_total['total']}")
-
-    print(f"\n📊 МЕТРИКИ КОДА:")
-    print(f"   • Test/Code ratio:     {test_metrics['test_to_code_ratio']:.2f}")
-    print(f"   • Плотность assert'ов:  {test_metrics['assert_density']:.3f}")
-
-    # Эффективность Hypothesis тестов
-    print(f"\n🔬 ЭФФЕКТИВНОСТЬ HYPOTHESIS:")
-    if total_hypothesis > 0 and total_unit > 0:
-        avg_time_unit = time_unit / total_unit if total_unit > 0 else 0
-        avg_time_hypothesis = time_hypothesis / total_hypothesis if total_hypothesis > 0 else 0
-
-        print(f"   • Среднее время unit теста:       {avg_time_unit:.4f} сек")
-        print(f"   • Среднее время hypothesis теста: {avg_time_hypothesis:.4f} сек")
-
-        if avg_time_unit > 0:
-            time_ratio = avg_time_hypothesis / avg_time_unit
-            print(f"   • Hypothesis тесты {'медленнее' if time_ratio > 1 else 'быстрее'} в {time_ratio:.2f} раз")
-
-    if cov_unit['percentage'] > 0 and cov_hypothesis['percentage'] > 0:
-        coverage_gain = cov_total['percentage'] - cov_unit['percentage']
-        print(f"   • Прирост покрытия от Hypothesis: {coverage_gain:+.1f}%")
-
-    # 6. ОЦЕНКА
-    print("\n" + "─" * 40)
-    print("  🏆 ОЦЕНКА РЕЗУЛЬТАТОВ")
-    print("─" * 40)
-
-    all_tests_passed = (passed_unit == total_unit) and (passed_hypothesis == total_hypothesis)
-
-    if all_tests_passed:
-        print("   ✅ ВСЕ ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО!")
-
-        # Оценка покрытия
-        if cov_total['percentage'] >= 95:
-            print(f"   🏆 ОТЛИЧНОЕ покрытие кода: {cov_total['percentage']:.1f}%")
-            print("   💪 Проект готов к использованию!")
-        elif cov_total['percentage'] >= 90:
-            print(f"   👍 ОЧЕНЬ ХОРОШЕЕ покрытие: {cov_total['percentage']:.1f}%")
-            print("   🚀 Можно продолжать разработку")
-        elif cov_total['percentage'] >= 85:
-            print(f"   ✅ ХОРОШЕЕ покрытие: {cov_total['percentage']:.1f}%")
-            print("   📝 Рекомендуется добавить тесты для edge cases")
-        elif cov_total['percentage'] >= 80:
-            print(f"   ⚠️  УДОВЛЕТВОРИТЕЛЬНОЕ покрытие: {cov_total['percentage']:.1f}%")
-            print("   🔧 Нужно добавить больше тестов")
-        elif cov_total['percentage'] >= 70:
-            print(f"   ⚠️  СРЕДНЕЕ покрытие: {cov_total['percentage']:.1f}%")
-            print("   🛠️  Требуется доработка тестов")
-        else:
-            print(f"   ❗ НИЗКОЕ покрытие: {cov_total['percentage']:.1f}%")
-            print("   🛠️  Требуется существенная доработка тестов")
-
-        # Оценка производительности
-        print(f"\n   ⏱️  ОЦЕНКА ПРОИЗВОДИТЕЛЬНОСТИ:")
-        if total_test_time < 5:
-            print(f"   🚀 Отличная производительность: {total_test_time:.2f} сек")
-        elif total_test_time < 15:
-            print(f"   ✅ Хорошая производительность: {total_test_time:.2f} сек")
-        elif total_test_time < 30:
-            print(f"   ⚠️  Средняя производительность: {total_test_time:.2f} сек")
-        else:
-            print(f"   🐌 Низкая производительность: {total_test_time:.2f} сек")
-
-        # Оценка плотности тестов
-        print(f"\n   📊 ОЦЕНКА ПЛОТНОСТИ ТЕСТОВ:")
-        if test_metrics['assert_density'] >= 0.5:
-            print(f"   👍 Высокая плотность проверок: {test_metrics['assert_density']:.3f}")
-        elif test_metrics['assert_density'] >= 0.2:
-            print(f"   ✅ Средняя плотность проверок: {test_metrics['assert_density']:.3f}")
-        else:
-            print(f"   ⚠️  Низкая плотность проверок: {test_metrics['assert_density']:.3f}")
-
-        return 0
+def compute_mutation_score(test_path: str, mutations: List[str]) -> Dict:
+    killed = 0
+    survived = []
+    if not mutations:
+        return {
+            "score": 0.0,
+            "killed": 0,
+            "total": 0,
+            "survived": [],
+        }
     else:
-        print("   ⚠️ ЕСТЬ ПРОБЛЕМЫ С ТЕСТАМИ")
+        for mut in mutations:
+            print(f"   🧬 Мутация: {mut}")
+            try:
+                os.environ["FA_MUTATION"] = mut
 
-        if passed_unit < total_unit:
-            failed_unit = total_unit - passed_unit
-            print(f"   ❌ Обычные тесты: {failed_unit} тестов не прошло")
+                result = run_tests_once(test_path)
 
-        if passed_hypothesis < total_hypothesis:
-            failed_hypothesis = total_hypothesis - passed_hypothesis
-            print(f"   ❌ Тесты с Hypothesis: {failed_hypothesis} тестов не прошло")
+                if not result["all_passed"]:
+                    killed += 1
+                    print("      ❌ УБИТ")
+                else:
+                    survived.append(mut)
+                    print("      ⚠️  ВЫЖИЛ")
 
-        print("\n🔧 ДЛЯ ОТЛАДКИ:")
-        print("   • Запустите все тесты с детальным выводом:")
-        print("     pytest tests/unit/ -v")
-        print("   • Только упавшие тесты:")
-        print("     pytest tests/unit/ --lf")
-        print("   • Конкретный упавший тест:")
-        print("     pytest tests/unit/ -k 'название_теста' -v")
-        print("   • Тесты с Hypothesis с отладочным выводом:")
-        print("     pytest tests/unit/test_fa_simple_hypothesis.py -v -s")
+            finally:
+                os.environ.pop("FA_MUTATION", None)
 
-        return 1
+    score = killed / len(mutations)
 
+    return {
+        "score": score,
+        "killed": killed,
+        "total": len(mutations),
+        "survived": survived,
+    }
+
+
+# ------------------------------------------------------------
+# TSQI
+# ------------------------------------------------------------
+
+def compute_tsq(cov: float, mut: float, stab: float, time_val: float) -> float:
+    # немного сглаженная метрика производительности
+    perf = 1 / (1 + time_val / 5)
+
+    return (
+        0.25 * cov +
+        0.45 * mut +
+        0.2 * stab +
+        0.1 * perf
+    )
+
+
+# ------------------------------------------------------------
+# EVALUATION
+# ------------------------------------------------------------
+
+def evaluate(test_path: str, name: str, impl: str) -> Dict:
+    print("\n" + "=" * 80)
+    print(f"🔍 Оценка: {name} [{impl}]")
+    print("=" * 80)
+
+    os.environ["FA_IMPL"] = impl
+
+    print("\n▶️ Прогоны тестов")
+    base = run_tests_multiple(test_path)
+
+    print("\n▶️ Мутационное тестирование")
+
+    # мутации применяем к FA_simple и FA_dict
+    relevant_mutations = [
+        m for m in MUTATIONS
+        if m.startswith(f"{impl}_")
+    ]
+
+    mut_data = compute_mutation_score(test_path, relevant_mutations)
+
+    tsqi = compute_tsq(
+        cov=base["coverage"],
+        mut=mut_data["score"],   # <-- ВАЖНЫЙ ФИКС
+        stab=base["stability"],
+        time_val=base["time"],
+    )
+
+    os.environ.pop("FA_IMPL", None)
+
+    return {
+        "coverage": base["coverage"],
+        "stability": base["stability"],
+        "time": base["time"],
+        "mutation": mut_data,
+        "tsqi": tsqi,
+    }
+
+
+# ------------------------------------------------------------
+# FINAL TABLE
+# ------------------------------------------------------------
+
+def print_final_table(results: Dict):
+    print("\n" + "=" * 80)
+    print("📊 ИТОГОВАЯ ТАБЛИЦА")
+    print("=" * 80)
+
+    header = f"{'Impl':10} | {'Approach':10} | {'Cov':6} | {'Mut':6} | {'Stab':6} | {'Time':6} | {'TSQI':6}"
+    print(header)
+    print("-" * len(header))
+
+    for impl, approaches in results.items():
+        for name, m in approaches.items():
+            print(
+                f"{impl:10} | {name:10} | "
+                f"{m['coverage']*100:5.1f}% | "
+                f"{m['mutation']['score']*100:5.1f}% | "
+                f"{m['stability']*100:5.1f}% | "
+                f"{m['time']:5.2f}s | "
+                f"{m['tsqi']:.3f}"
+            )
+
+
+# ------------------------------------------------------------
+# MAIN
+# ------------------------------------------------------------
+
+def main():
+    print("=" * 80)
+    print("🧪 ЭКСПЕРИМЕНТ: СРАВНЕНИЕ РЕАЛИЗАЦИЙ И ПОДХОДОВ")
+    print("=" * 80)
+
+    results = {}
+
+    for impl in IMPLEMENTATIONS:
+        print("\n" + "#" * 80)
+        print(f"🚀 РЕАЛИЗАЦИЯ: {impl}")
+        print("#" * 80)
+
+        unit = evaluate(TEST_SUITES["UNIT"], "UNIT", impl)
+        hypo = evaluate(TEST_SUITES["HYPOTHESIS"], "HYPOTHESIS", impl)
+        combined = evaluate(TEST_SUITES["COMBINED"], "COMBINED", impl)
+
+        results[impl] = {
+            "UNIT": unit,
+            "HYPOTHESIS": hypo,
+            "COMBINED": combined,
+        }
+
+    print_final_table(results)
+
+    print("\n" + "=" * 80)
+    print("⚠️ ВЫЖИВШИЕ МУТАЦИИ")
+    print("=" * 80)
+
+    for impl, approaches in results.items():
+        print(f"\n{impl}:")
+        for name, m in approaches.items():
+            surv = m["mutation"]["survived"]
+            if surv:
+                print(f"  {name:<12} -> {surv}")
+            else:
+                print(f"  {name:<12} -> нет")
 
 if __name__ == "__main__":
-    try:
-        exit_code = main()
-        sys.exit(exit_code)
-    except KeyboardInterrupt:
-        print("\n\n⏹️ Тестирование прервано")
-        sys.exit(130)
-    except Exception as e:
-        print(f"\n❌ Критическая ошибка: {e}")
-        traceback.print_exc()
-        sys.exit(1)
+    main()

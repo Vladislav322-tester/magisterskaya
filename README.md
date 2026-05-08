@@ -167,7 +167,7 @@ pip install -r requirements.txt
 python run_tests.py
 
 # Только unit-тесты
-pytest tests/unit/test_fa_simple.py -v
+pytest tests/unit/test_fa_model_refactored.py -v
 
 # Только property-based тесты  
 pytest tests/unit/test_fa_simple_hypothesis.py -v
