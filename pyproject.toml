@@ -1,7 +1,7 @@
 [project]
 name = "magisterskaya"
 version = "1.0.0"
-description = "Система модульного тестирования анализа и синтеза конечных и расширенных автоматов"
+description = "Система тестирования конечных автоматов для магистерского исследования"
 authors = [
     {name = "Малютин Владислав Евгеньевич", email = "errergrgbrh@mail.ru"}
 ]
@@ -26,19 +26,15 @@ classifiers = [
 dependencies = [
     "pytest>=7.0.0",
     "hypothesis>=6.0.0",
+    "pytest-cov>=4.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "isort>=5.12.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
-]
-docs = [
-    "sphinx>=7.0.0",
-    "sphinx-rtd-theme>=1.0.0",
 ]
 
 [project.urls]
@@ -50,7 +46,7 @@ Repository = "https://github.com/Vladislav322-tester/magisterskaya.git"
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-# ============ Настройки для инструментов ============
+# ============ Настройки инструментов ============
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -62,7 +58,7 @@ addopts = [
     "--tb=short",   # короткие traceback
     "--strict-markers",
     "--strict-config",
-    "-ra",          # вывод результатов тестов
+    "-ra",          # вывод дополнительной информации о результатах
 ]
 markers = [
     "unit: модульные тесты",
@@ -167,7 +163,7 @@ per-file-ignores = [
     "__init__.py: F401",  # неиспользуемые импорты в __init__.py
 ]
 
-# Настройки для setuptools
+# Настройки setuptools
 [tool.setuptools]
 packages = ["src"]
 
