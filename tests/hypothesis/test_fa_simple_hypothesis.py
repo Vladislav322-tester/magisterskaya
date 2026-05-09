@@ -22,7 +22,7 @@ from tests.hypothesis.hypothesis_strategies import (
 )
 
 # ---------------------------------------------------------
-# SETTINGS
+# Настройки Hypothesis
 # ---------------------------------------------------------
 
 COMMON_SETTINGS = settings(
@@ -32,10 +32,16 @@ COMMON_SETTINGS = settings(
 
 
 def _words_from_alphabet(data):
+    """
+    Строит стратегию слов над алфавитом сгенерированного автомата.
+    """
     return st.lists(st.sampled_from(data["inputs"]), min_size=0, max_size=10)
 
 
 def _reference_accept(data, word):
+    """
+    Независимо интерпретирует DFA по исходным данным и слову.
+    """
     transition_by_state_input = {
         (str(t[0]), str(t[1])): t[2]
         for t in data["transitions"]
@@ -59,12 +65,18 @@ def _reference_accept(data, word):
 
 
 def _acceptance_value(result):
+    """
+    Извлекает булев результат принятия из совместимого ответа accept_FA.
+    """
     if result is None:
         return None
     return result[0]
 
 
 def _word_to_missing_transition(data):
+    """
+    Находит слово, приводящее к отсутствующему переходу в partial DFA.
+    """
     transition_by_state_input = {
         (str(t[0]), str(t[1])): t[2]
         for t in data["transitions"]
@@ -91,7 +103,7 @@ def _word_to_missing_transition(data):
 
 
 # =========================================================
-# 1. BEHAVIORAL СВОЙСТВА
+# 1. Поведенческие свойства
 # =========================================================
 
 # ---------------------------------------------------------
@@ -101,6 +113,9 @@ def _word_to_missing_transition(data):
 @given(valid_fa(), random_word())
 @COMMON_SETTINGS
 def test_accept_deterministic(data, word):
+    """
+    Проверяет детерминированность результата accept_FA при повторном запуске на одном слове.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     assert fa.accept_FA(word) == fa.accept_FA(word)
@@ -109,6 +124,9 @@ def test_accept_deterministic(data, word):
 @given(valid_fa(), st.data())
 @COMMON_SETTINGS
 def test_accept_matches_reference_model(data, draw_data):
+    """
+    Сравнивает принятие одного слова с независимой reference-моделью DFA.
+    """
     word = draw_data.draw(_words_from_alphabet(data))
     fa = create_complete_fa_from_data(data, FA_simple)
 
@@ -118,6 +136,9 @@ def test_accept_matches_reference_model(data, draw_data):
 @given(valid_fa(), st.data())
 @COMMON_SETTINGS
 def test_accept_matches_reference_model_for_multiple_words(data, draw_data):
+    """
+    Сравнивает принятие нескольких слов с независимой reference-моделью DFA.
+    """
     words = draw_data.draw(
         st.lists(_words_from_alphabet(data), min_size=2, max_size=5)
     )
@@ -134,6 +155,9 @@ def test_accept_matches_reference_model_for_multiple_words(data, draw_data):
 @given(valid_fa(), random_word())
 @COMMON_SETTINGS
 def test_encode_preserves_behavior(data, word):
+    """
+    Проверяет, что encode_states не меняет результат принятия слова.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     before = fa.accept_FA(word)
@@ -148,6 +172,9 @@ def test_encode_preserves_behavior(data, word):
 @given(valid_fa_with_string_states(), st.data())
 @COMMON_SETTINGS
 def test_encode_states_preserves_language_for_string_states(data, draw_data):
+    """
+    Проверяет сохранение языка при кодировании строковых числовых состояний.
+    """
     word = draw_data.draw(_words_from_alphabet(data))
     fa = create_complete_fa_from_data(data, FA_simple)
 
@@ -166,6 +193,9 @@ def test_encode_states_preserves_language_for_string_states(data, draw_data):
 @given(valid_fa(), random_word())
 @COMMON_SETTINGS
 def test_order_independence(data, word):
+    """
+    Проверяет, что порядок переходов не влияет на результат обработки слова.
+    """
     fa1 = create_complete_fa_from_data(data, FA_simple)
     fa2 = create_complete_fa_from_data(data, FA_simple)
 
@@ -177,6 +207,9 @@ def test_order_independence(data, word):
 @given(valid_fa(), st.data())
 @COMMON_SETTINGS
 def test_order_independence_matches_reference_model(data, draw_data):
+    """
+    Сравнивает результат после перемешивания переходов с reference-моделью.
+    """
     word = draw_data.draw(_words_from_alphabet(data))
     fa = create_complete_fa_from_data(data, FA_simple)
     expected = _reference_accept(data, word)
@@ -187,7 +220,7 @@ def test_order_independence_matches_reference_model(data, draw_data):
 
 
 # =========================================================
-# 2. STRUCTURAL СВОЙСТВА
+# 2. Структурные свойства
 # =========================================================
 
 # ---------------------------------------------------------
@@ -197,6 +230,9 @@ def test_order_independence_matches_reference_model(data, draw_data):
 @given(valid_fa())
 @COMMON_SETTINGS
 def test_states_cover_transitions(data):
+    """
+    Проверяет, что состояния из переходов присутствуют в множестве состояний.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     states = fa.get_states_list()
@@ -213,6 +249,9 @@ def test_states_cover_transitions(data):
 @given(valid_fa())
 @COMMON_SETTINGS
 def test_encode_states_normalizes(data):
+    """
+    Проверяет, что кодирование переводит состояния в целые числа без дубликатов.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     fa.encode_states(forced_transform=True)
@@ -230,6 +269,9 @@ def test_encode_states_normalizes(data):
 @given(valid_fa())
 @COMMON_SETTINGS
 def test_encode_idempotent(data):
+    """
+    Проверяет идемпотентность повторного кодирования состояний.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     fa.encode_states(forced_transform=True)
@@ -248,6 +290,9 @@ def test_encode_idempotent(data):
 @given(valid_fa())
 @COMMON_SETTINGS
 def test_complete_monotonic(data):
+    """
+    Проверяет, что complete не уменьшает число переходов.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     before = len(fa.transitionList)
@@ -265,6 +310,9 @@ def test_complete_monotonic(data):
 @given(valid_fa())
 @COMMON_SETTINGS
 def test_complete_idempotent(data):
+    """
+    Проверяет идемпотентность операции complete.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     fa.complete()
@@ -283,6 +331,9 @@ def test_complete_idempotent(data):
 @given(incomplete_fa())
 @COMMON_SETTINGS
 def test_complete_adds_transitions(data):
+    """
+    Проверяет, что complete на неполном автомате не теряет переходы.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     before = len(fa.transitionList)
@@ -296,7 +347,7 @@ def test_complete_adds_transitions(data):
 
 
 # =========================================================
-# 3. ROBUSTNESS СВОЙСТВА
+# 3. Свойства устойчивости
 # =========================================================
 
 # ---------------------------------------------------------
@@ -306,6 +357,9 @@ def test_complete_adds_transitions(data):
 @given(incomplete_fa())
 @COMMON_SETTINGS
 def test_complete_preserves_existing_transitions(data):
+    """
+    Проверяет, что complete сохраняет все исходные переходы.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
     old_transitions = list(fa.transitionList)
 
@@ -319,6 +373,9 @@ def test_complete_preserves_existing_transitions(data):
 @given(incomplete_fa(), st.data())
 @COMMON_SETTINGS
 def test_complete_preserves_defined_behavior(data, draw_data):
+    """
+    Проверяет, что complete сохраняет поведение на уже определенных словах.
+    """
     word = draw_data.draw(_words_from_alphabet(data))
     expected = _reference_accept(data, word)
     assume(expected is not None)
@@ -335,6 +392,9 @@ def test_complete_preserves_defined_behavior(data, draw_data):
 @given(incomplete_fa())
 @COMMON_SETTINGS
 def test_missing_transition_matches_reference_semantics(data):
+    """
+    Проверяет семантику отсутствующего перехода в partial DFA.
+    """
     word = _word_to_missing_transition(data)
     assume(word is not None)
 
@@ -347,6 +407,9 @@ def test_missing_transition_matches_reference_semantics(data):
 @given(valid_fa(), random_word())
 @COMMON_SETTINGS
 def test_accept_no_crash(data, word):
+    """
+    Smoke-проверка обработки корректных сгенерированных слов.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     fa.accept_FA(word)
@@ -359,6 +422,9 @@ def test_accept_no_crash(data, word):
 @given(broken_fa())
 @COMMON_SETTINGS
 def test_methods_no_crash_on_broken(data):
+    """
+    Проверяет устойчивость legacy API на некорректных данных.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     try:
@@ -384,12 +450,15 @@ def test_methods_no_crash_on_broken(data):
 @given(valid_fa())
 @COMMON_SETTINGS
 def test_complete_no_crash(data):
+    """
+    Smoke-проверка вызова complete на корректных автоматах.
+    """
     fa = create_complete_fa_from_data(data, FA_simple)
 
     fa.complete()
 
 # =========================================================
-# 4. ДОПОЛНИТЕЛЬНОЕ ПОКРЫТИЕ (ADVANCED)
+# 4. Дополнительное покрытие
 # =========================================================
 
 # ---------------------------------------------------------
@@ -526,7 +595,7 @@ def test_encode_then_complete(data, word):
         pass
 
 # =========================================================
-# 5. TARGETED TESTS (ТОЧЕЧНОЕ ПОКРЫТИЕ)
+# 5. Точечное покрытие
 # =========================================================
 
 # ---------------------------------------------------------

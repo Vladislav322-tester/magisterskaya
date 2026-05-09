@@ -1,13 +1,12 @@
-"""Theory-oriented deterministic finite automaton implementation.
+"""Теоретически ориентированная реализация детерминированного автомата.
 
-FA_dict is intentionally independent from the legacy FA_simple implementation.
-It models a partial DFA as:
+FA_dict независим от legacy-реализации FA_simple и моделирует partial DFA:
 
     Q, Sigma, delta, q0, F
 
-The transition function is stored as a dictionary keyed by (state, input).
-The public methods keep the small compatibility surface needed by the test
-infrastructure, but the core behavior is defined by DFA semantics.
+Функция переходов хранится как словарь с ключом (состояние, вход).
+Публичные методы сохраняют минимальную совместимость с тестовой
+инфраструктурой, но основное поведение задается DFA-семантикой.
 """
 
 from __future__ import annotations
@@ -18,7 +17,13 @@ from typing import Any
 
 
 class FA_dict:
+    """
+    Детерминированный конечный автомат с хранением переходов в словаре.
+    """
     def __init__(self):
+        """
+        Инициализирует пустой автомат и служебные поля совместимости.
+        """
         self.states: set[Any] = set()
         self.inputs: set[Any] = set()
         self.transitions: dict[tuple[Any, Any], Any] = {}
@@ -34,11 +39,14 @@ class FA_dict:
         self.numberOfOutputs = 0
 
     # ---------------------------------------------------------
-    # Construction
+    # Создание автомата
     # ---------------------------------------------------------
 
     @classmethod
     def from_data(cls, data):
+        """
+        Создает автомат из словаря данных, используемого Hypothesis-стратегиями.
+        """
         fa = cls()
         fa.states = set(data.get("states", []))
         fa.inputs = set(data.get("inputs", []))
@@ -53,6 +61,9 @@ class FA_dict:
 
     @classmethod
     def from_efa(cls, efa):
+        """
+        Создает DFA-объект из EFA-подобного объекта для совместимости тестов.
+        """
         fa = cls()
         fa.initialState = getattr(efa, "initialState", 0)
         fa.finalStates = set(getattr(efa, "finalStates", set()))
@@ -64,6 +75,9 @@ class FA_dict:
 
     @classmethod
     def from_FA(cls, other):
+        """
+        Создает DFA-объект из другого FA/FSM-подобного объекта.
+        """
         fa = cls()
         fa.initialState = getattr(other, "initialState", 0)
         fa.finalStates = set(getattr(other, "finalStates", set()))
@@ -73,11 +87,14 @@ class FA_dict:
         return fa
 
     # ---------------------------------------------------------
-    # Compatibility transition list
+    # Совместимое представление переходов
     # ---------------------------------------------------------
 
     @property
     def transitionList(self):
+        """
+        Возвращает переходы в legacy-формате списка.
+        """
         result = []
         result.extend(self._malformed_transitions)
         for key in self._order:
@@ -91,6 +108,9 @@ class FA_dict:
 
     @transitionList.setter
     def transitionList(self, transitions):
+        """
+        Загружает переходы из legacy-списка в словарную модель DFA.
+        """
         self.transitions = {}
         self.outputs = {}
         self._order = []
@@ -107,6 +127,9 @@ class FA_dict:
         self._sync_declared_sizes()
 
     def _add_transition(self, state, symbol, next_state, output=None):
+        """
+        Добавляет переход, проверяя детерминизм по паре состояние-вход.
+        """
         key = (state, symbol)
         if key in self.transitions:
             same_next = self.transitions[key] == next_state
@@ -124,15 +147,21 @@ class FA_dict:
         self.inputs.add(symbol)
 
     def _sync_declared_sizes(self):
+        """
+        Синхронизирует объявленные размеры с фактическими множествами автомата.
+        """
         self.numberOfStates = max(self.numberOfStates, len(self.states))
         self.numberOfInputs = max(self.numberOfInputs, len(self.inputs))
         self.numberOfOutputs = max(self.numberOfOutputs, len(set(self.outputs.values())))
 
     # ---------------------------------------------------------
-    # Formal DFA helpers
+    # Формальные вспомогательные методы DFA
     # ---------------------------------------------------------
 
     def _all_states(self):
+        """
+        Возвращает множество состояний Q с учетом явно заданного размера.
+        """
         states = set(self.states)
         if (
             self.numberOfStates
@@ -143,23 +172,35 @@ class FA_dict:
         return states
 
     def _all_inputs(self):
+        """
+        Возвращает входной алфавит Sigma с учетом явно заданного размера.
+        """
         inputs = set(self.inputs)
         if self.numberOfInputs and (not inputs or all(isinstance(i, int) for i in inputs)):
             inputs.update(range(self.numberOfInputs))
         return inputs
 
     def _states_are_integer_like(self):
+        """
+        Проверяет, можно ли трактовать состояния как целочисленный диапазон.
+        """
         if not self.states:
             return True
         return all(isinstance(s, int) for s in self.states)
 
     def _lookup_key(self, state, symbol):
+        """
+        Находит ключ перехода для текущего состояния и входного символа.
+        """
         key = (state, symbol)
         if key in self.transitions:
             return key
         return None
 
     def _is_final(self, state):
+        """
+        Проверяет, принадлежит ли состояние множеству допускающих состояний F.
+        """
         if state in self.finalStates:
             return True
         try:
@@ -170,6 +211,9 @@ class FA_dict:
         return str(state) in self.finalStates
 
     def _fresh_sink_state(self):
+        """
+        Выбирает новое имя для sink/dead state при дополнении автомата.
+        """
         states = self._all_states()
         if not states or all(isinstance(s, int) for s in states):
             return max(states, default=-1) + 1
@@ -180,10 +224,13 @@ class FA_dict:
         return sink
 
     # ---------------------------------------------------------
-    # Core behavior
+    # Основное поведение
     # ---------------------------------------------------------
 
     def accept_FA(self, word):
+        """
+        Интерпретирует входное слово по DFA-семантике и возвращает результат принятия.
+        """
         state = self.initialState
         fired = []
 
@@ -198,6 +245,9 @@ class FA_dict:
         return self._is_final(state), fired
 
     def is_complete(self):
+        """
+        Проверяет, определена ли функция переходов для всех пар Q x Sigma.
+        """
         return all(
             (state, symbol) in self.transitions
             for state in self._all_states()
@@ -205,6 +255,9 @@ class FA_dict:
         )
 
     def complete(self, comptype="loop", reaction=0):
+        """
+        Дополняет partial DFA sink-состоянием и недостающими переходами.
+        """
         if comptype not in {"loop", "DCS"}:
             print("Error! Specify completion type: loop or DCS")
             return None
@@ -246,10 +299,13 @@ class FA_dict:
         return reaction
 
     # ---------------------------------------------------------
-    # Encoding and structural queries
+    # Кодирование и структурные запросы
     # ---------------------------------------------------------
 
     def encode_states(self, is_abstraction=False, forced_transform=False):
+        """
+        Переименовывает состояния в целые числа, сохраняя язык автомата.
+        """
         old_states = list(self._all_states())
         if self.initialState not in old_states:
             old_states.append(self.initialState)
@@ -288,6 +344,9 @@ class FA_dict:
         return True, reverse_mapping, abstraction_mapping
 
     def _state_was_final_before_encoding(self, state, old_states):
+        """
+        Проверяет, было ли состояние допускающим до кодирования.
+        """
         if state in self.finalStates:
             return True
         try:
@@ -298,28 +357,46 @@ class FA_dict:
         return str(state) in self.finalStates
 
     def get_states_list(self):
+        """
+        Возвращает список состояний автомата для совместимости с тестами.
+        """
         if self._malformed_transitions:
             raise IndexError("Malformed transition has no next state")
         return list(self._all_states())
 
     def get_inputs_list(self):
+        """
+        Возвращает список входных символов автомата.
+        """
         return list(self._all_inputs())
 
     def get_actions_list(self):
+        """
+        Возвращает входной алфавит в терминах legacy API.
+        """
         if self._malformed_transitions:
             raise IndexError("Malformed transition has no input")
         return self.get_inputs_list()
 
     def get_outputs_list(self):
+        """
+        Возвращает множество выходов для FSM-совместимого режима.
+        """
         return list(set(self.outputs.values()))
 
     def get_ns_out(self, state, inp):
+        """
+        Возвращает следующее состояние и выход для заданной пары состояние-вход.
+        """
         key = self._lookup_key(state, inp)
         if key is None:
             raise Exception(f"get_ns_out error: no such (state, input) = ({state}, {inp})")
         return self.transitions[key], self.outputs.get(key, 0)
 
     def get_completely_undefined_states(self):
+        """
+        Находит состояния без исходящих переходов по всему алфавиту.
+        """
         inputs = self._all_inputs()
         return [
             state
@@ -328,18 +405,27 @@ class FA_dict:
         ]
 
     def check_states_for_consistency(self):
+        """
+        Проверяет однородность типов состояний.
+        """
         states = self.get_states_list()
         return len({type(state) for state in states}) <= 1
 
     def check_inputs_outputs_for_consistency(self):
+        """
+        Проверяет однородность типов входов и выходов.
+        """
         values = self.get_actions_list() + self.get_outputs_list()
         return len({type(value) for value in values}) <= 1
 
     # ---------------------------------------------------------
-    # FSM compatibility helpers
+    # Вспомогательные методы совместимости с FSM
     # ---------------------------------------------------------
 
     def move_seq_FSM(self, input_seq):
+        """
+        Обрабатывает входную последовательность в FSM-режиме и возвращает выходы и финальное состояние.
+        """
         state = self.initialState
         output_seq = []
         for symbol in input_seq:
@@ -351,6 +437,9 @@ class FA_dict:
         return output_seq, state
 
     def encode_inputs_outputs(self, forced_transform=False, dont_change_original=False):
+        """
+        Кодирует входы и выходы целыми числами для FSM-совместимости.
+        """
         target = deepcopy(self) if dont_change_original else self
 
         inputs = list(target._all_inputs())
@@ -390,6 +479,9 @@ class FA_dict:
         return True, {v: k for k, v in input_mapping.items()}, {v: k for k, v in output_mapping.items()}
 
     def rename_inputs(self, mapping):
+        """
+        Переименовывает входные символы по заданному отображению.
+        """
         assert len(mapping) == self.numberOfInputs
         new_items = []
         for key in self._order:
@@ -401,18 +493,27 @@ class FA_dict:
         ]
 
     def sort_trans_table(self):
+        """
+        Сортирует порядок совместимого списка переходов без изменения семантики.
+        """
         self._order.sort(key=lambda key: (repr(key[0]), repr(key[1])))
 
     def print_transition_table(self):
+        """
+        Печатает таблицу переходов в человекочитаемом виде.
+        """
         for tr in self.transitionList:
             print(" ".join(str(part) for part in tr))
 
     # ---------------------------------------------------------
-    # File compatibility
+    # Совместимость с файловыми форматами
     # ---------------------------------------------------------
 
     @staticmethod
     def _parse_atom(value):
+        """
+        Преобразует строковый атом из файла в int, если это возможно.
+        """
         try:
             return int(value)
         except ValueError:
@@ -420,6 +521,9 @@ class FA_dict:
 
     @staticmethod
     def read_FA(filename):
+        """
+        Читает автомат из простого FA-файла.
+        """
         path = Path(filename)
         lines = path.read_text().splitlines()
         info = {}
@@ -448,6 +552,9 @@ class FA_dict:
 
     @staticmethod
     def read_FSM(filename):
+        """
+        Читает FSM-файл и строит совместимый объект автомата.
+        """
         path = Path(filename)
         lines = path.read_text().splitlines()
         fa = FA_dict()
@@ -491,6 +598,9 @@ class FA_dict:
         return fa
 
     def write_FSM(self, filename):
+        """
+        Записывает автомат в FSM-совместимый текстовый формат.
+        """
         path = Path(filename)
         lines = [
             "F 0",
@@ -504,6 +614,9 @@ class FA_dict:
         path.write_text("\n".join(lines) + "\n")
 
     def write_FSM_init(self, filename, states_excluded=None):
+        """
+        Записывает FSM, исключая выбранные начальные состояния из переходов.
+        """
         states_excluded = set(states_excluded or [])
         path = Path(filename)
         transitions = [tr for tr in self.transitionList if tr[0] not in states_excluded]
@@ -519,10 +632,13 @@ class FA_dict:
         path.write_text("\n".join(lines) + "\n")
 
     # ---------------------------------------------------------
-    # Equality
+    # Сравнение автоматов
     # ---------------------------------------------------------
 
     def __eq__(self, other):
+        """
+        Сравнивает два автомата по их формальным компонентам и совместимым полям.
+        """
         if not isinstance(other, FA_dict):
             return False
         if (

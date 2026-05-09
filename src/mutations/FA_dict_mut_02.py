@@ -1,10 +1,20 @@
-"""FA_dict mutant 02: missing transitions reject instead of returning None."""
+"""Мутант FA_dict 02: отсутствующий переход считается отклонением.
+
+Корректная partial DFA-семантика должна возвращать None, если переход
+для пары состояние-вход не определен.
+"""
 
 from src.FA_dict import FA_dict as FA_dict_orig
 
 
 class FA_dict(FA_dict_orig):
+    """
+    Мутант FA_dict, нарушающий семантику отсутствующих переходов.
+    """
     def accept_FA(self, word):
+        """
+        Возвращает отклонение вместо None при отсутствующем переходе.
+        """
         state = self.initialState
         fired = []
 

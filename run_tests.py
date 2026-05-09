@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Experimental runner for FA testing strategies.
+"""Экспериментальный runner для сравнения стратегий тестирования автоматов.
 
-This script measures unit tests, Hypothesis tests, combined tests, coverage,
-stability, and mutation score.  Invalid/incompetent mutants are reported
-separately and are excluded from mutation score.
+Модуль запускает unit-, Hypothesis- и комбинированные наборы тестов,
+считает coverage, стабильность и mutation score, а также отдельно
+учитывает невалидные или некомпетентные мутанты.
 """
 
 from __future__ import annotations
@@ -17,6 +17,9 @@ from typing import Dict, List
 
 
 def load_dotenv(path: str = ".env") -> bool:
+    """
+    Загружает локальный .env-файл в переменные окружения, если файл существует.
+    """
     env_path = Path(path)
     if not env_path.exists():
         return False
@@ -69,8 +72,11 @@ IMPLEMENTATIONS = [
 
 
 def print_configuration() -> None:
-    print("Configuration:")
-    print(f"  .env loaded: {'yes' if DOTENV_LOADED else 'no'}")
+    """
+    Печатает параметры эксперимента, с которыми будет запущен runner.
+    """
+    print("Конфигурация:")
+    print(f"  .env загружен: {'да' if DOTENV_LOADED else 'нет'}")
     print(f"  FA_RUNS={RUNS}")
     print(f"  FA_IMPLS={','.join(IMPLEMENTATIONS)}")
     print(f"  FA_SUITES={','.join(TEST_SUITES)}")
@@ -79,6 +85,9 @@ def print_configuration() -> None:
 
 
 def run_command(cmd: str, env: dict | None = None) -> tuple[bool, str, float]:
+    """
+    Запускает shell-команду и возвращает статус, объединенный вывод и длительность.
+    """
     command_env = os.environ.copy()
     if env:
         command_env.update(env)
@@ -98,6 +107,9 @@ def run_command(cmd: str, env: dict | None = None) -> tuple[bool, str, float]:
 
 
 def parse_pytest_summary(output: str) -> tuple[int, int]:
+    """
+    Извлекает количество прошедших и всего выполненных тестов из вывода pytest.
+    """
     for line in reversed(output.splitlines()):
         if any(word in line for word in ["passed", "failed", "error"]):
             passed = _count(line, "passed")
@@ -108,15 +120,24 @@ def parse_pytest_summary(output: str) -> tuple[int, int]:
 
 
 def _count(line: str, label_regex: str) -> int:
+    """
+    Извлекает числовое значение для указанной метки из строки summary pytest.
+    """
     match = re.search(rf"(\d+)\s+{label_regex}", line)
     return int(match.group(1)) if match else 0
 
 
 def coverage_target_for_impl(impl: str) -> str:
+    """
+    Возвращает модуль coverage, соответствующий выбранной реализации автомата.
+    """
     return COV_TARGETS.get(impl, f"src.{impl}")
 
 
 def parse_coverage(output: str) -> float | None:
+    """
+    Извлекает процент покрытия из строки TOTAL в отчете coverage.
+    """
     for line in output.splitlines():
         if line.strip().startswith("TOTAL"):
             match = re.search(r"(\d+(?:\.\d+)?)%", line)
@@ -125,10 +146,16 @@ def parse_coverage(output: str) -> float | None:
 
 
 def pytest_run_ok(command_ok: bool, passed: int, total: int) -> bool:
+    """
+    Определяет, был ли pytest-прогон успешным и непустым.
+    """
     return command_ok and total > 0 and passed == total
 
 
 def has_infrastructure_error(output: str) -> bool:
+    """
+    Ищет в выводе pytest признаки инфраструктурной ошибки или ошибки collection.
+    """
     markers = [
         "ERROR collecting",
         "ImportError",
@@ -143,6 +170,9 @@ def has_infrastructure_error(output: str) -> bool:
 
 
 def validate_factory_selection(impl: str, mutation: str | None = None) -> tuple[bool, str]:
+    """
+    Проверяет, что фабрика выбрала нужную реализацию и, при необходимости, мутант.
+    """
     env = {"FA_IMPL": impl}
     if mutation:
         env["FA_MUTATION"] = mutation
@@ -160,6 +190,9 @@ def validate_factory_selection(impl: str, mutation: str | None = None) -> tuple[
 
 
 def discover_mutations(impl: str) -> list[str]:
+    """
+    Находит mutation-модули, относящиеся к выбранной реализации.
+    """
     mutations_dir = Path("src") / "mutations"
     if not mutations_dir.exists():
         return []
@@ -176,6 +209,9 @@ def run_tests_once(
     mutation: str | None = None,
     with_coverage: bool = True,
 ) -> Dict:
+    """
+    Запускает один pytest-прогон для suite, реализации и опционального мутанта.
+    """
     env = {"FA_IMPL": impl}
     if mutation:
         env["FA_MUTATION"] = mutation
@@ -210,9 +246,12 @@ def run_tests_once(
 
 
 def run_tests_multiple(test_path: str, impl: str, runs: int = RUNS) -> Dict:
+    """
+    Повторяет baseline-прогон несколько раз и агрегирует стабильность, время и coverage.
+    """
     results = []
     for i in range(runs):
-        print(f"   run {i + 1}/{runs}")
+        print(f"   прогон {i + 1}/{runs}")
         results.append(run_tests_once(test_path, impl, with_coverage=True))
 
     return {
@@ -224,6 +263,9 @@ def run_tests_multiple(test_path: str, impl: str, runs: int = RUNS) -> Dict:
 
 
 def compute_mutation_score(test_path: str, impl: str) -> Dict:
+    """
+    Считает mutation score для выбранного набора тестов и реализации.
+    """
     killed: list[str] = []
     survived: list[str] = []
     invalid: list[dict] = []
@@ -240,11 +282,11 @@ def compute_mutation_score(test_path: str, impl: str) -> Dict:
         }
 
     for mutation in discover_mutations(impl):
-        print(f"   mutation: {mutation}")
+        print(f"   мутант: {mutation}")
         valid, validation = validate_factory_selection(impl, mutation)
         if not valid:
             invalid.append({"name": mutation, "reason": validation})
-            print("      INVALID: import/factory selection failed")
+            print("      НЕВАЛИДЕН: ошибка импорта или выбора фабрики")
             continue
 
         result = run_tests_once(
@@ -258,13 +300,13 @@ def compute_mutation_score(test_path: str, impl: str) -> Dict:
                 "name": mutation,
                 "reason": "collection/import/API error or zero collected tests",
             })
-            print("      INVALID: test run did not execute valid tests")
+            print("      НЕВАЛИДЕН: тестовый прогон не выполнил валидные тесты")
         elif result["all_passed"]:
             survived.append(mutation)
-            print("      SURVIVED")
+            print("      ВЫЖИЛ")
         else:
             killed.append(mutation)
-            print("      KILLED")
+            print("      УБИТ")
 
     valid_total = len(killed) + len(survived)
     return {
@@ -279,18 +321,24 @@ def compute_mutation_score(test_path: str, impl: str) -> Dict:
 
 
 def compute_tsq(cov: float, mut: float, stab: float, time_val: float) -> float:
+    """
+    Вычисляет сводный показатель качества тестов из coverage, mutation score, стабильности и времени.
+    """
     perf = 1 / (1 + time_val / 5)
     return 0.25 * cov + 0.45 * mut + 0.2 * stab + 0.1 * perf
 
 
 def evaluate(test_path: str, suite_name: str, impl: str) -> Dict:
+    """
+    Проводит полную оценку одного test suite для одной реализации автомата.
+    """
     print("\n" + "=" * 80)
-    print(f"Evaluation: {suite_name} [{impl}]")
+    print(f"Оценка: {suite_name} [{impl}]")
     print("=" * 80)
 
     selected, details = validate_factory_selection(impl)
     if not selected:
-        print(f"Factory selection failed: {details}")
+        print(f"Не удалось выбрать реализацию через фабрику: {details}")
         return {
             "coverage": 0.0,
             "stability": 0.0,
@@ -306,9 +354,9 @@ def evaluate(test_path: str, suite_name: str, impl: str) -> Dict:
             "tsqi": 0.0,
         }
 
-    print(f"Factory: {details}")
-    coverage_label = coverage_target_for_impl(impl) if COVERAGE_ENABLED else "disabled"
-    print(f"Coverage target: {coverage_label}")
+    print(f"Фабрика: {details}")
+    coverage_label = coverage_target_for_impl(impl) if COVERAGE_ENABLED else "отключено"
+    print(f"Цель coverage: {coverage_label}")
     base = run_tests_multiple(test_path, impl)
     mutations = compute_mutation_score(test_path, impl)
 
@@ -328,12 +376,15 @@ def evaluate(test_path: str, suite_name: str, impl: str) -> Dict:
 
 
 def print_final_table(results: Dict) -> None:
+    """
+    Печатает итоговую таблицу экспериментальных метрик.
+    """
     print("\n" + "=" * 80)
-    print("FINAL TABLE")
+    print("ИТОГОВАЯ ТАБЛИЦА")
     print("=" * 80)
     header = (
-        f"{'Impl':10} | {'Suite':10} | {'Cov':6} | {'Mut':6} | "
-        f"{'Stab':6} | {'Time':7} | {'Invalid':7} | {'TSQI':6}"
+        f"{'Реализация':10} | {'Набор':10} | {'Cov':6} | {'Mut':6} | "
+        f"{'Stab':6} | {'Время':7} | {'Невал.':7} | {'TSQI':6}"
     )
     print(header)
     print("-" * len(header))
@@ -354,8 +405,11 @@ def print_final_table(results: Dict) -> None:
 
 
 def main() -> int:
+    """
+    Точка входа experiment runner: запускает все выбранные реализации и наборы тестов.
+    """
     print("=" * 80)
-    print("FA TESTING EXPERIMENT")
+    print("ЭКСПЕРИМЕНТ ТЕСТИРОВАНИЯ АВТОМАТОВ")
     print("=" * 80)
     print_configuration()
 
@@ -367,13 +421,13 @@ def main() -> int:
 
     print_final_table(results)
 
-    print("\nInvalid/Incompetent mutants are excluded from mutation score.")
+    print("\nНевалидные/некомпетентные мутанты исключены из mutation score.")
     for impl, suites in results.items():
         print(f"\n{impl}:")
         for suite_name, metrics in suites.items():
             invalid = metrics["mutation"]["invalid"]
             survived = metrics["mutation"]["survived"]
-            print(f"  {suite_name}: survived={survived or []}, invalid={len(invalid)}")
+            print(f"  {suite_name}: выжившие={survived or []}, невалидные={len(invalid)}")
 
     return 0
 

@@ -1,10 +1,19 @@
-"""FA_dict mutant 05: complete() adds self-loops instead of a sink state."""
+"""Мутант FA_dict 05: complete добавляет self-loop вместо sink-состояния.
+
+Мутант нарушает теоретическую семантику дополнения partial DFA.
+"""
 
 from src.FA_dict import FA_dict as FA_dict_orig
 
 
 class FA_dict(FA_dict_orig):
+    """
+    Мутант FA_dict, нарушающий дополнение partial DFA.
+    """
     def complete(self, comptype="loop", reaction=0):
+        """
+        Добавляет self-loop вместо переходов в sink-состояние.
+        """
         if comptype not in {"loop", "DCS"}:
             return None
         if comptype == "DCS" and not isinstance(reaction, int):

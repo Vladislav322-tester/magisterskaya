@@ -1,16 +1,8 @@
 """
-MODEL TESTS (теоретический уровень)
+Модельные unit-тесты для конечных автоматов.
 
-Проверяем:
-- множества состояний
-- алфавиты
-- полноту
-- поведение автомата
-- инварианты
-- детерминизм
-- корректность кодирования
-
-Это основной файл тестов для магистерской
+Файл проверяет теоретически значимые свойства: множество состояний,
+алфавиты, полноту, принятие слов, детерминизм и инварианты преобразований.
 """
 
 import pytest
@@ -18,11 +10,14 @@ from src.fa_factory import FA as FA_simple
 
 
 # =========================================================
-# 1. СОСТОЯНИЯ
+# 1. Состояния
 # =========================================================
 
 class TestStates:
 
+    """
+    Группирует тесты свойств множества состояний автомата.
+    """
     def test_states_are_defined_by_transitions(self):
         """Состояния извлекаются из переходов"""
         fa = FA_simple()
@@ -60,7 +55,13 @@ class TestStates:
 
 class TestAlphabet:
 
+    """
+    Группирует тесты извлечения входного и выходного алфавитов.
+    """
     def test_inputs_extracted_correctly(self):
+        """
+        Проверяет извлечение входных символов из списка переходов.
+        """
         fa = FA_simple()
         fa.transitionList = [
             ("q0", "a", "q1", "x"),
@@ -70,6 +71,9 @@ class TestAlphabet:
         assert set(fa.get_actions_list()) == {"a", "b"}
 
     def test_outputs_extracted_correctly(self):
+        """
+        Проверяет извлечение выходных символов из FSM-переходов.
+        """
         fa = FA_simple()
         fa.transitionList = [
             ("q0", "a", "q1", "x"),
@@ -79,6 +83,9 @@ class TestAlphabet:
         assert set(fa.get_outputs_list()) == {"x", "y"}
 
     def test_empty_transition_list(self):
+        """
+        Проверяет пустые алфавиты для автомата без переходов.
+        """
         fa = FA_simple()
         assert fa.get_actions_list() == []
         assert fa.get_outputs_list() == []
@@ -90,7 +97,13 @@ class TestAlphabet:
 
 class TestCompleteness:
 
+    """
+    Группирует тесты полноты и дополнения автомата.
+    """
     def test_completion_preserves_existing_transitions(self):
+        """
+        Проверяет, что complete сохраняет уже существующий переход.
+        """
         fa = FA_simple()
         fa.transitionList = [(0, 0, 1, 0)]
         fa.numberOfStates = 2
@@ -105,6 +118,9 @@ class TestCompleteness:
         assert before == after
 
     def test_complete_automaton(self):
+        """
+        Проверяет распознавание полного автомата.
+        """
         fa = FA_simple()
         fa.transitionList = [
             (0, 0, 1, 0),
@@ -118,6 +134,9 @@ class TestCompleteness:
         assert fa.is_complete() is True
 
     def test_incomplete_automaton(self):
+        """
+        Проверяет распознавание неполного автомата.
+        """
         fa = FA_simple()
         fa.transitionList = [(0, 0, 1, 0)]
         fa.numberOfStates = 2
@@ -126,6 +145,9 @@ class TestCompleteness:
         assert fa.is_complete() is False
 
     def test_zero_states(self):
+        """
+        Проверяет поведение проверки полноты для нулевого числа состояний и входов.
+        """
         fa = FA_simple()
         fa.numberOfStates = 0
         fa.numberOfInputs = 0
@@ -139,7 +161,13 @@ class TestCompleteness:
 
 class TestStateClassification:
 
+    """
+    Группирует тесты классификации состояний по входящим и исходящим переходам.
+    """
     def test_state_with_no_outgoing_transitions(self):
+        """
+        Проверяет обнаружение состояния без исходящих переходов.
+        """
         fa = FA_simple()
         fa.transitionList = [(0, "a", 1, "x")]
 
@@ -151,6 +179,9 @@ class TestStateClassification:
         assert 1 in no_outgoing
 
     def test_state_with_no_incoming_transitions(self):
+        """
+        Проверяет обнаружение состояния без входящих переходов.
+        """
         fa = FA_simple()
         fa.transitionList = [(0, "a", 1, "x")]
 
@@ -162,6 +193,9 @@ class TestStateClassification:
         assert 0 in no_incoming
 
     def test_isolated_state_detection(self):
+        """
+        Проверяет обнаружение изолированного состояния по declared numberOfStates.
+        """
         fa = FA_simple()
         fa.transitionList = [(0, "a", 1, "x")]
         fa.numberOfStates = 3
@@ -181,7 +215,13 @@ class TestStateClassification:
 
 class TestBehavior:
 
+    """
+    Группирует тесты операционного поведения автомата.
+    """
     def test_outputs_correctness(self):
+        """
+        Проверяет корректность выходной последовательности FSM.
+        """
         fa = FA_simple()
         fa.initialState = 0
         fa.transitionList = [
@@ -194,6 +234,9 @@ class TestBehavior:
         assert outputs == ["x", "y"]
 
     def test_state_progression(self):
+        """
+        Проверяет достижение ожидаемого состояния после обработки входа.
+        """
         fa = FA_simple()
         fa.initialState = 0
         fa.transitionList = [
@@ -206,6 +249,9 @@ class TestBehavior:
         assert state == 2
 
     def test_invalid_sequence(self):
+        """
+        Проверяет поведение при отсутствующем переходе.
+        """
         fa = FA_simple()
         fa.initialState = 0
         fa.transitionList = [(0, "a", 1, "x")]
@@ -213,6 +259,9 @@ class TestBehavior:
         assert fa.move_seq_FSM(["b"]) == (None, None)
 
     def test_empty_sequence(self):
+        """
+        Проверяет обработку пустой входной последовательности.
+        """
         fa = FA_simple()
         fa.initialState = 0
 
@@ -222,6 +271,9 @@ class TestBehavior:
         assert state in [0, "0"]
 
     def test_long_sequence(self):
+        """
+        Проверяет обработку длинной циклической последовательности.
+        """
         fa = FA_simple()
         fa.initialState = 0
         fa.transitionList = [(0, "a", 0, "x")]
@@ -237,7 +289,13 @@ class TestBehavior:
 
 class TestGetNsOut:
 
+    """
+    Группирует тесты метода получения следующего состояния и выхода.
+    """
     def test_return_type(self):
+        """
+        Проверяет тип результата get_ns_out.
+        """
         fa = FA_simple()
         fa.transitionList = [(0, "a", 1, "x")]
 
@@ -247,12 +305,18 @@ class TestGetNsOut:
         assert len(result) == 2
 
     def test_valid_transition(self):
+        """
+        Проверяет get_ns_out для существующего перехода.
+        """
         fa = FA_simple()
         fa.transitionList = [(0, "a", 1, "x")]
 
         assert fa.get_ns_out(0, "a") == (1, "x")
 
     def test_missing_transition(self):
+        """
+        Проверяет исключение get_ns_out для отсутствующего перехода.
+        """
         fa = FA_simple()
         fa.transitionList = [(0, "a", 1, "x")]
 
@@ -266,7 +330,13 @@ class TestGetNsOut:
 
 class TestAcceptance:
 
+    """
+    Группирует тесты принятия и отклонения слов.
+    """
     def test_empty_sequence_acceptance(self):
+        """
+        Проверяет принятие пустого слова, когда начальное состояние допускающее.
+        """
         fa = FA_simple()
         fa.initialState = 0
         fa.finalStates = {0}
@@ -276,6 +346,9 @@ class TestAcceptance:
         assert result is True
 
     def test_accepting_sequence(self):
+        """
+        Проверяет принятие слова, приводящего в допускающее состояние.
+        """
         fa = FA_simple()
         fa.transitionList = [(0, "a", 1), (1, "b", 2)]
         fa.initialState = 0
@@ -286,6 +359,9 @@ class TestAcceptance:
         assert result is True
 
     def test_rejecting_sequence(self):
+        """
+        Проверяет отклонение слова, приводящего в недопускающее состояние.
+        """
         fa = FA_simple()
         fa.transitionList = [(0, "a", 1)]
         fa.initialState = 0
@@ -302,7 +378,13 @@ class TestAcceptance:
 
 class TestInvariants:
 
+    """
+    Группирует тесты инвариантов при преобразованиях автомата.
+    """
     def test_transitions_count_preserved(self):
+        """
+        Проверяет сохранение числа переходов при кодировании состояний.
+        """
         fa = FA_simple()
         fa.transitionList = [
             ("q0", "a", "q1", "x"),
@@ -319,6 +401,9 @@ class TestInvariants:
         assert before == after
 
     def test_inputs_outputs_preserved(self):
+        """
+        Проверяет сохранение входов и выходов при кодировании состояний.
+        """
         fa = FA_simple()
         fa.transitionList = [
             ("q0", "a", "q1", "x"),
@@ -341,7 +426,13 @@ class TestInvariants:
 
 class TestDeterminism:
 
+    """
+    Группирует тесты детерминированного поведения.
+    """
     def test_same_input_same_output(self):
+        """
+        Проверяет повторяемость результата для одного входного слова.
+        """
         fa = FA_simple()
         fa.transitionList = [
             (0, "a", 1, "x"),
@@ -358,7 +449,13 @@ class TestDeterminism:
 
 class TestOrderIndependence:
 
+    """
+    Группирует тесты независимости поведения от порядка переходов.
+    """
     def test_transition_order_does_not_affect_behavior(self):
+        """
+        Проверяет, что перестановка переходов не меняет поведение.
+        """
         fa1 = FA_simple()
         fa1.transitionList = [(0, "a", 1, "x"), (1, "b", 0, "y")]
         fa1.initialState = 0

@@ -19,7 +19,7 @@ from src.fa_factory import FA as FA_simple
 
 
 # =========================================================
-# BUG TESTS (фиксируем известные проблемы)
+# Тесты известных проблем
 # =========================================================
 
 @pytest.mark.xfail(reason="BUG: encode_inputs_outputs expects 4-tuple even for non-FSM")
@@ -79,7 +79,7 @@ def test_eq_different_length():
 
 
 # =========================================================
-# READ FSM / FA
+# Чтение FSM и FA
 # =========================================================
 
 def test_read_fsm(tmp_path):
@@ -166,7 +166,7 @@ def test_read_fa_multiple_final_states(tmp_path):
 
 
 # =========================================================
-# WRITE FSM
+# Запись FSM
 # =========================================================
 
 def test_write_fsm(tmp_path):
@@ -295,7 +295,7 @@ def test_encode_inputs_outputs_non_fsm_safe():
 
 
 # =========================================================
-# UTILS
+# Вспомогательные методы
 # =========================================================
 
 def test_print_transition_table(capsys):
@@ -364,7 +364,7 @@ def test_get_completely_undefined_states():
 
 
 # =========================================================
-# COMPLETE (ошибочные ветки)
+# Дополнение автомата: ошибочные ветки
 # =========================================================
 
 def test_complete_invalid_type():
@@ -395,7 +395,7 @@ def test_complete_dcs_wrong_reaction():
     assert result is None
 
 # =========================================================
-# EXTRA COVERAGE (точечное добивание веток)
+# Дополнительное точечное покрытие веток
 # =========================================================
 
 # ---------------------------------------------------------
@@ -425,7 +425,13 @@ def test_eq_print_difference_full_branch(capsys):
 # 2. from_efa (полное покрытие)
 # ---------------------------------------------------------
 class DummyEFAFull:
+    """
+    Тестовый EFA-подобный объект для проверки конвертации.
+    """
     def __init__(self):
+        """
+        Инициализирует переходы и финальные состояния тестового объекта.
+        """
         self.transitionList = [
             type("T", (), {"state1": 0, "input": "a", "state2": 1}),
             type("T", (), {"state1": 1, "input": "b", "state2": 2}),
@@ -455,7 +461,13 @@ def test_from_efa_full():
 # 3. from_FA (FSM и non-FSM ветки)
 # ---------------------------------------------------------
 class DummyFAFull:
+    """
+    Тестовый FA/FSM-подобный объект для проверки from_FA.
+    """
     def __init__(self, isFSM):
+        """
+        Инициализирует объект в режиме FA или FSM.
+        """
         self.initialState = 0
         self.transitionList = [(0, "a", 1, "x")]
         self.isFSM = isFSM
@@ -661,6 +673,9 @@ def test_accept_fa_error_branch(capsys):
 # 13. __eq__ → полное совпадение (return True)
 # ---------------------------------------------------------
 def test_eq_full_true_branch():
+    """
+    Проверяет ветку равенства для полностью совпадающих автоматов.
+    """
     fa1 = FA_simple()
     fa2 = FA_simple()
 
@@ -706,6 +721,9 @@ final_state 1
 # 15. check_states_for_consistency → False
 # ---------------------------------------------------------
 def test_check_states_consistency_false():
+    """
+    Проверяет обнаружение неоднородных типов состояний.
+    """
     fa = FA_simple()
     fa.transitionList = [
         (0, "a", 1),
@@ -719,6 +737,9 @@ def test_check_states_consistency_false():
 # 16. check_inputs_outputs_for_consistency → False
 # ---------------------------------------------------------
 def test_check_inputs_outputs_consistency_false():
+    """
+    Проверяет обнаружение неоднородных типов входов или выходов.
+    """
     fa = FA_simple()
     fa.transitionList = [
         (0, 1, 1, 0),
@@ -756,6 +777,9 @@ def test_is_complete_deep_missing_transition():
 # 18. encode_states → initialState не число
 # ---------------------------------------------------------
 def test_encode_states_initial_not_digit():
+    """
+    Проверяет кодирование автомата с нечисловым начальным состоянием.
+    """
     fa = FA_simple()
     fa.isFSM = 0
     fa.initialState = "start"
