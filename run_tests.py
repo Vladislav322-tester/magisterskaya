@@ -16,16 +16,49 @@ from pathlib import Path
 from typing import Dict, List
 
 
+def load_dotenv(path: str = ".env") -> bool:
+    env_path = Path(path)
+    if not env_path.exists():
+        return False
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+    return True
+
+
+DOTENV_LOADED = load_dotenv()
 RUNS = int(os.getenv("FA_RUNS", "1"))
+MUTATION_TESTING = os.getenv("FA_MUTATION_TESTING", "1") != "0"
+COVERAGE_ENABLED = os.getenv("FA_COVERAGE", "1") != "0"
 COV_TARGETS = {
     "FA_simple": "src.FA_simple",
     "FA_dict": "src.FA_dict",
 }
 
-TEST_SUITES = {
+ALL_TEST_SUITES = {
     "UNIT": "tests/unit/",
     "HYPOTHESIS": "tests/hypothesis/",
     "COMBINED": "tests/",
+}
+
+SUITE_NAMES = [
+    item.strip().upper()
+    for item in os.getenv("FA_SUITES", "UNIT,HYPOTHESIS,COMBINED").split(",")
+    if item.strip()
+]
+
+TEST_SUITES = {
+    name: ALL_TEST_SUITES[name]
+    for name in SUITE_NAMES
+    if name in ALL_TEST_SUITES
 }
 
 IMPLEMENTATIONS = [
@@ -33,6 +66,16 @@ IMPLEMENTATIONS = [
     for item in os.getenv("FA_IMPLS", "FA_simple").split(",")
     if item.strip()
 ]
+
+
+def print_configuration() -> None:
+    print("Configuration:")
+    print(f"  .env loaded: {'yes' if DOTENV_LOADED else 'no'}")
+    print(f"  FA_RUNS={RUNS}")
+    print(f"  FA_IMPLS={','.join(IMPLEMENTATIONS)}")
+    print(f"  FA_SUITES={','.join(TEST_SUITES)}")
+    print(f"  FA_MUTATION_TESTING={1 if MUTATION_TESTING else 0}")
+    print(f"  FA_COVERAGE={1 if COVERAGE_ENABLED else 0}")
 
 
 def run_command(cmd: str, env: dict | None = None) -> tuple[bool, str, float]:
@@ -137,8 +180,9 @@ def run_tests_once(
     if mutation:
         env["FA_MUTATION"] = mutation
 
+    coverage_requested = with_coverage and COVERAGE_ENABLED
     coverage_target = coverage_target_for_impl(impl)
-    if with_coverage:
+    if coverage_requested:
         cmd = f"pytest {test_path} --cov={coverage_target} --cov-report=term"
     else:
         cmd = f"pytest {test_path} -q"
@@ -148,8 +192,8 @@ def run_tests_once(
         env=env,
     )
     passed, total = parse_pytest_summary(out)
-    coverage = parse_coverage(out) if with_coverage else 0.0
-    coverage_failed = with_coverage and coverage is None
+    coverage = parse_coverage(out) if coverage_requested else 0.0
+    coverage_failed = coverage_requested and coverage is None
     invalid_run = total == 0 or has_infrastructure_error(out) or coverage_failed
     all_passed = pytest_run_ok(ok, passed, total) and not coverage_failed
     return {
@@ -158,7 +202,7 @@ def run_tests_once(
         "all_passed": all_passed,
         "invalid_run": invalid_run,
         "coverage": coverage if coverage is not None else 0.0,
-        "coverage_target": coverage_target if with_coverage else None,
+        "coverage_target": coverage_target if coverage_requested else None,
         "coverage_failed": coverage_failed,
         "time": duration,
         "output": out,
@@ -183,6 +227,17 @@ def compute_mutation_score(test_path: str, impl: str) -> Dict:
     killed: list[str] = []
     survived: list[str] = []
     invalid: list[dict] = []
+
+    if not MUTATION_TESTING:
+        return {
+            "score": 0.0,
+            "killed": 0,
+            "survived": [],
+            "invalid": [],
+            "valid_total": 0,
+            "total": 0,
+            "enabled": False,
+        }
 
     for mutation in discover_mutations(impl):
         print(f"   mutation: {mutation}")
@@ -219,6 +274,7 @@ def compute_mutation_score(test_path: str, impl: str) -> Dict:
         "invalid": invalid,
         "valid_total": valid_total,
         "total": valid_total + len(invalid),
+        "enabled": True,
     }
 
 
@@ -251,7 +307,8 @@ def evaluate(test_path: str, suite_name: str, impl: str) -> Dict:
         }
 
     print(f"Factory: {details}")
-    print(f"Coverage target: {coverage_target_for_impl(impl)}")
+    coverage_label = coverage_target_for_impl(impl) if COVERAGE_ENABLED else "disabled"
+    print(f"Coverage target: {coverage_label}")
     base = run_tests_multiple(test_path, impl)
     mutations = compute_mutation_score(test_path, impl)
 
@@ -300,6 +357,7 @@ def main() -> int:
     print("=" * 80)
     print("FA TESTING EXPERIMENT")
     print("=" * 80)
+    print_configuration()
 
     results = {}
     for impl in IMPLEMENTATIONS:

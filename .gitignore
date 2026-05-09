@@ -23,6 +23,10 @@ env/
 env.bak/
 venv.bak/
 
+# Local environment
+.env
+!.env.example
+
 # OS files
 .DS_Store
 .DS_Store?
